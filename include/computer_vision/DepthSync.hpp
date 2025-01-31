@@ -33,20 +33,20 @@ using std::placeholders::_3;
 class CVGroup
 {
 public:
-  CVGroup(cv::Mat image_rgb, cv::Mat image_depth, pcl::PointCloud<pcl::PointXYZRGB> pointcloud)
+  CVGroup(cv::Mat image_depth1, cv::Mat image_depth2, cv::Mat image_depth3)
   {
-    image_rgb_ = image_rgb;
-    image_depth_ = image_depth;
-    pointcloud_ = pointcloud;
+    image_depth1_ = image_depth1;
+    image_depth2_ = image_depth2;
+    image_depth3_ = image_depth3;
   }
-  cv::Mat getImageRGB() {return image_rgb_;}
-  cv::Mat getImageDepth() {return image_depth_;}
-  pcl::PointCloud<pcl::PointXYZRGB> getPointCloud() {return pointcloud_;}
+  cv::Mat getImageDepth1() {return image_depth1_;}
+  cv::Mat getImageDepth2() {return image_depth2_;}
+  cv::Mat getImageDepth3() {return image_depth3_;}
 
 private:
-  cv::Mat image_rgb_;
-  cv::Mat image_depth_;
-  pcl::PointCloud<pcl::PointXYZRGB> pointcloud_;
+  cv::Mat image_depth1_;
+  cv::Mat image_depth2_;
+  cv::Mat image_depth3_;
 };
 
 class DepthSync
@@ -99,7 +99,7 @@ public:
       this, "/image_depth_in3", rclcpp::SensorDataQoS().reliable().get_rmw_qos_profile());
 
     sync_ = std::make_shared<message_filters::Synchronizer<MySyncPolicy>>(
-      MySyncPolicy(100), *subscription_depth1_, *subscription_depth2_, *subscription_depth3_);
+      MySyncPolicy(10000), *subscription_depth1_, *subscription_depth2_, *subscription_depth3_);
     sync_->registerCallback(
       std::bind(
         &CVSubscriber::topic_callback_multi, this, _1, _2, _3));
@@ -205,7 +205,7 @@ private:
       cv::Mat image_depth_raw3 = image_depth_ptr3->image;
 
       // Image and PointCloud processing
-      DepthSync cvgroup = CVGroup(image_depth_raw1, image_depth_raw2, image_depth_raw3);
+      CVGroup cvgroup = CVGroup(image_depth_raw1, image_depth_raw2, image_depth_raw3);
 
       // Convert OpenCV Image to ROS Image
       cv_bridge::CvImage image_depth_bridge1 =
