@@ -57,8 +57,19 @@ add_executable(cv_program src/main.cpp)
 ament_target_dependencies(cv_program ${dependencies})
 target_link_libraries(cv_program ${PROJECT_NAME})
 
+## depht2pcl node
+add_executable(depth2pcl src/computer_vision/Depth2pcl.cpp)
+target_include_directories(depth2pcl PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+target_compile_features(depth2pcl PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+ament_target_dependencies(depth2pcl ${dependencies})
+
+target_link_libraries(depth2pcl ${PROJECT_NAME})
+
 install(TARGETS ${PROJECT_NAME}
   cv_program
+  depth2pcl
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
