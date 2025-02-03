@@ -70,7 +70,7 @@ public:
         &ComputerVisionSubscriber::intrinsic_params_callback, this, std::placeholders::_1));
 
     publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-      "/pcl_output",
+      "pcl_from_depth",
       rclcpp::SensorDataQoS().reliable());
 
     timer_ = create_wall_timer(50ms, std::bind(&ComputerVisionSubscriber::on_timer, this));
@@ -103,6 +103,7 @@ private:
   // Apply the thinning procedure to a given image
   pcl::PointCloud<pcl::PointXYZ> depth2pcl(cv::Mat input)
   {
+    float x_3d, y_3d, z_3d, d;
     pcl::PointCloud<pcl::PointXYZ> out_pointcloud;
     out_pointcloud.reserve(input.rows * input.cols);
 

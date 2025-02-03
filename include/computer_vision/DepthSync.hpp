@@ -99,7 +99,7 @@ public:
       this, "/image_depth_in3", rclcpp::SensorDataQoS().reliable().get_rmw_qos_profile());
 
     sync_ = std::make_shared<message_filters::Synchronizer<MySyncPolicy>>(
-      MySyncPolicy(10000), *subscription_depth1_, *subscription_depth2_, *subscription_depth3_);
+      MySyncPolicy(1000), *subscription_depth1_, *subscription_depth2_, *subscription_depth3_);
     sync_->registerCallback(
       std::bind(
         &CVSubscriber::topic_callback_multi, this, _1, _2, _3));

@@ -44,8 +44,6 @@
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "std_msgs/msg/string.hpp"
 
-#include <omp.h>
-
 using namespace std::chrono_literals;
 
 geometry_msgs::msg::TransformStamped camera2basefootprint;
@@ -70,7 +68,7 @@ public:
         &ComputerVisionSubscriber::intrinsic_params_callback, this, std::placeholders::_1));
 
     publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
-      "/pcl_output",
+      "pcl_from_depth",
       rclcpp::SensorDataQoS().reliable());
 
     timer_ = create_wall_timer(50ms, std::bind(&ComputerVisionSubscriber::on_timer, this));
@@ -103,28 +101,19 @@ private:
   // Apply the thinning procedure to a given image
   pcl::PointCloud<pcl::PointXYZ> depth2pcl(cv::Mat input)
   {
+    float x_3d, y_3d, z_3d, d;
     pcl::PointCloud<pcl::PointXYZ> out_pointcloud;
-    out_pointcloud.reserve(input.rows * input.cols);
 
     // Recorrer la imagen fila por fila
-    #pragma omp parallel for
     for (int row = 0; row < input.rows; ++row) {
-      const float* ptr = input.ptr<float>(row);
-      std::vector<pcl::PointXYZ> local_points;  // Cada hilo usa un vector local
-
       for (int col = 0; col < input.cols; ++col) {
-        float d = ptr[col] / 1000.0f;
-        if (!std::isfinite(d)) continue;
-
-        float x_3d = (row - cx_) * d / fx_;
-        float y_3d = (col - cy_) * d / fy_;
-        float z_3d = d;
-
-        local_points.emplace_back(x_3d, y_3d, z_3d);
+          d = input.at<float>(row, col) / 1000.0f;
+          if(isnan(d) || isinf(d)){continue;}
+          x_3d = ((float)row - cx_) * d / fx_;
+          y_3d = ((float)col - cy_) * d / fy_;
+          z_3d = d;
+          out_pointcloud.push_back(pcl::PointXYZ(x_3d, y_3d, z_3d));
       }
-
-      #pragma omp critical
-      out_pointcloud.insert(out_pointcloud.end(), local_points.begin(), local_points.end());
     }
   
     return out_pointcloud;
