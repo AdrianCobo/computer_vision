@@ -100,7 +100,6 @@ private:
     publisher_->publish(out_pointcloud);
   }
 
-  // Apply the thinning procedure to a given image
   pcl::PointCloud<pcl::PointXYZ> depth2pcl(cv::Mat input)
   {
     pcl::PointCloud<pcl::PointXYZ> out_pointcloud;

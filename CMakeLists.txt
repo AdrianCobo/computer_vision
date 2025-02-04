@@ -57,6 +57,10 @@ add_executable(cv_program src/main.cpp)
 ament_target_dependencies(cv_program ${dependencies})
 target_link_libraries(cv_program ${PROJECT_NAME})
 
+add_executable(pclsync src/main_pclsync.cpp)
+ament_target_dependencies(pclsync ${dependencies})
+target_link_libraries(pclsync ${PROJECT_NAME})
+
 ## depht2pcl node
 add_executable(depth2pcl src/computer_vision/Depth2pcl.cpp)
 target_include_directories(depth2pcl PUBLIC
@@ -70,6 +74,7 @@ target_link_libraries(depth2pcl ${PROJECT_NAME})
 install(TARGETS ${PROJECT_NAME}
   cv_program
   depth2pcl
+  pclsync
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin

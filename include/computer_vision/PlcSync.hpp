@@ -7,6 +7,8 @@
   See the LICENSE file in the root of this repository
 */
 
+// This node recives 3 depth imgs, sync them and publish a unique pcl knowing the relative position of the cameras
+
 #ifndef INCLUDE_COMPUTER_VISION__DEPTHSYNC_HPP_
 #define INCLUDE_COMPUTER_VISION__DEPTHSYNC_HPP_
 
@@ -21,6 +23,13 @@
 #include "cv_bridge/cv_bridge.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
+#include "pcl/point_types.h"
+#include "pcl_conversions/pcl_conversions.h"
+#include "pcl/point_types_conversion.h"
+#include "pcl/common/transforms.h"
+#include "sensor_msgs/msg/point_cloud2.hpp"
+#include <omp.h>
+#include <Eigen/Dense>
 
 namespace computer_vision
 {
@@ -28,6 +37,8 @@ namespace computer_vision
 using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
+
+int N_CAMS = 3;
 
 class CVGroup
 {
@@ -103,16 +114,8 @@ public:
       std::bind(
         &CVSubscriber::topic_callback_multi, this, _1, _2, _3));
 
-    publisher_depth2_ = this->create_publisher<sensor_msgs::msg::Image>(
-      "image_depth2",
-      rclcpp::SensorDataQoS().reliable());
-
-    publisher_depth1_ = this->create_publisher<sensor_msgs::msg::Image>(
-      "image_depth1",
-      rclcpp::SensorDataQoS().reliable());
-
-    publisher_depth3_ = this->create_publisher<sensor_msgs::msg::Image>(
-      "image_depth3",
+    publisher_pcl = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+      "pcl_sync",
       rclcpp::SensorDataQoS().reliable());
   }
 
@@ -126,6 +129,12 @@ private:
 
     camera_model1_ = std::make_shared<image_geometry::PinholeCameraModel>();
     camera_model1_->fromCameraInfo(*msg);
+    cv::Mat intrinsic_marix = (cv::Mat)camera_model1_->intrinsicMatrix();
+    
+    fx1_ = (float)intrinsic_marix.at<double>(0, 0);
+    fy1_ = (float)intrinsic_marix.at<double>(1, 1);
+    cx1_ = (float)intrinsic_marix.at<double>(0, 2);
+    cy1_ = (float)intrinsic_marix.at<double>(1, 2);
 
     subscription_info1_ = nullptr;
   }
@@ -136,6 +145,12 @@ private:
 
     camera_model2_ = std::make_shared<image_geometry::PinholeCameraModel>();
     camera_model2_->fromCameraInfo(*msg);
+    cv::Mat intrinsic_marix = (cv::Mat)camera_model2_->intrinsicMatrix();
+
+    fx2_ = (float)intrinsic_marix.at<double>(0, 0);
+    fy2_ = (float)intrinsic_marix.at<double>(1, 1);
+    cx2_ = (float)intrinsic_marix.at<double>(0, 2);
+    cy2_ = (float)intrinsic_marix.at<double>(1, 2);
 
     subscription_info2_ = nullptr;
   }
@@ -146,14 +161,59 @@ private:
 
     camera_model3_ = std::make_shared<image_geometry::PinholeCameraModel>();
     camera_model3_->fromCameraInfo(*msg);
+    cv::Mat intrinsic_marix = (cv::Mat)camera_model3_->intrinsicMatrix();
+
+    fx3_ = (float)intrinsic_marix.at<double>(0, 0);
+    fy3_ = (float)intrinsic_marix.at<double>(1, 1);
+    cx3_ = (float)intrinsic_marix.at<double>(0, 2);
+    cy3_ = (float)intrinsic_marix.at<double>(1, 2);
 
     subscription_info3_ = nullptr;
+  }
+
+  void z_rotation(pcl::PointCloud<pcl::PointXYZ>& input_pcl, pcl::PointCloud<pcl::PointXYZ>& final_pcl, const double& angle)
+  {
+    // Definir la traslación
+    Eigen::Vector3f translation(0.0, -1.0, -1.0);
+
+    // Crear la matriz de transformación (rotación en el eje Z)
+    Eigen::Affine3f transform = Eigen::Affine3f::Identity();
+    transform.translation() = translation;
+    transform.rotate(Eigen::AngleAxisf(angle, Eigen::Vector3f::UnitY()));
+
+    pcl::transformPointCloud(input_pcl, input_pcl, transform);
+    final_pcl.insert(final_pcl.end(), input_pcl.begin(), input_pcl.end());
+  }
+
+  void depth2pcl(const cv::Mat& input, const float& fx, const float& fy, const float& cx, const float& cy, 
+  pcl::PointCloud<pcl::PointXYZ>& final_pcl)
+  {
+    // Recorrer la imagen fila por fila
+    #pragma omp parallel for
+    for (int row = 0; row < input.rows; ++row) {
+      const float* ptr = input.ptr<float>(row);
+      std::vector<pcl::PointXYZ> local_points;  // Cada hilo usa un vector local
+
+      for (int col = 0; col < input.cols; ++col) {
+        float d = ptr[col] / 1000.0f;
+        if (!std::isfinite(d)) continue;
+
+        float x_3d = (row - cx) * d / fx;
+        float y_3d = (col - cy) * d / fy;
+        float z_3d = d;
+
+        local_points.emplace_back(x_3d, y_3d, z_3d);
+      }
+
+      #pragma omp critical
+      final_pcl.insert(final_pcl.end(), local_points.begin(), local_points.end());
+    }
   }
 
   void topic_callback_multi(
     const sensor_msgs::msg::Image::ConstSharedPtr & image_depth_msg1,
     const sensor_msgs::msg::Image::ConstSharedPtr & image_depth_msg2,
-    const sensor_msgs::msg::Image::ConstSharedPtr & image_depth_msg3) const
+    const sensor_msgs::msg::Image::ConstSharedPtr & image_depth_msg3)
   {
     // Check if camera model has been received
     if (camera_model1_ == nullptr) {
@@ -172,16 +232,15 @@ private:
     }
 
     // Check if depth image has been received
-    if (image_depth_msg2->encoding != "16UC1" && image_depth_msg2->encoding != "32FC1") {
+    if ((image_depth_msg2->encoding != "16UC1" && image_depth_msg2->encoding != "32FC1") ||
+        (image_depth_msg1->encoding != "16UC1" && image_depth_msg1->encoding != "32FC1") ||
+        (image_depth_msg3->encoding != "16UC1" && image_depth_msg3->encoding != "32FC1") ) {
       RCLCPP_ERROR(get_logger(), "The image type has not depth info");
       return;
     }
 
     // Set "check_subscription_count" to False in the launch file if you want to process it always
-    if (!check_subscription_count_ ||
-      ((publisher_depth1_->get_subscription_count() > 0 ) &&
-      (publisher_depth2_->get_subscription_count() > 0) &&
-      (publisher_depth3_->get_subscription_count() > 0)))
+    if (!check_subscription_count_ || publisher_pcl->get_subscription_count() > 0)
     {
       // Convert ROS Image to OpenCV Image | sensor_msgs::msg::Image -> cv::Mat
       cv_bridge::CvImagePtr image_depth_ptr1, image_depth_ptr2, image_depth_ptr3;
@@ -199,42 +258,25 @@ private:
         RCLCPP_ERROR(get_logger(), "cv_bridge exception: %s", e.what());
         return;
       }
-      cv::Mat image_depth_raw1 = image_depth_ptr1->image;
-      cv::Mat image_depth_raw2 = image_depth_ptr2->image;
-      cv::Mat image_depth_raw3 = image_depth_ptr3->image;
 
-      // Image and PointCloud processing
-      CVGroup cvgroup = CVGroup(image_depth_raw1, image_depth_raw2, image_depth_raw3);
+      pcl::PointCloud<pcl::PointXYZ> final_pcl, temp_pcl;
+      final_pcl.reserve(image_depth_ptr1->image.rows * image_depth_ptr1->image.cols * N_CAMS);
+      
+      depth2pcl(image_depth_ptr1->image, fx1_, fy1_, cx1_, cy1_, final_pcl);
 
-      // Convert OpenCV Image to ROS Image
-      cv_bridge::CvImage image_depth_bridge1 =
-        cv_bridge::CvImage(
-        image_depth_msg1->header, sensor_msgs::image_encodings::TYPE_32FC1,
-        cvgroup.getImageDepth1());
+      // depth2pcl(image_depth_ptr2->image, fx2_, fy2_, cx2_, cy2_, temp_pcl);
+      // z_rotation(temp_pcl, final_pcl, M_PI / 2.0);
 
-      cv_bridge::CvImage image_depth_bridge2 =
-        cv_bridge::CvImage(
-        image_depth_msg2->header, sensor_msgs::image_encodings::TYPE_32FC1,
-        cvgroup.getImageDepth2());
+      // depth2pcl(image_depth_ptr3->image, fx3_, fy3_, cx3_, cy3_, temp_pcl);
+      // z_rotation(temp_pcl, final_pcl, M_PI);
 
-      cv_bridge::CvImage image_depth_bridge3 =
-        cv_bridge::CvImage(
-        image_depth_msg3->header, sensor_msgs::image_encodings::TYPE_32FC1,
-        cvgroup.getImageDepth3());
-    
-
-      // >> message to be sent
-      sensor_msgs::msg::Image out_image_depth1, out_image_depth2, out_image_depth3;
-
-      // from cv_bridge to sensor_msgs::Image
-      image_depth_bridge1.toImageMsg(out_image_depth1);
-      image_depth_bridge2.toImageMsg(out_image_depth2);
-      image_depth_bridge3.toImageMsg(out_image_depth3);
+      // TODO: change PCLXYZ to sensormsgs_pcl
+      sensor_msgs::msg::PointCloud2 out_pointcloud;
+      pcl::toROSMsg(final_pcl, out_pointcloud);
+      out_pointcloud.header = image_depth_msg1->header;
 
       // Publish the data
-      publisher_depth1_->publish(out_image_depth1);
-      publisher_depth2_->publish(out_image_depth2);
-      publisher_depth3_->publish(out_image_depth3);
+      publisher_pcl->publish(out_pointcloud);
     }
   }
 
@@ -243,8 +285,9 @@ private:
   std::shared_ptr<message_filters::Synchronizer<MySyncPolicy>> sync_;
   std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> subscription_depth1_, subscription_depth2_, subscription_depth3_;
   rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr subscription_info1_, subscription_info2_, subscription_info3_;
-  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr publisher_depth1_, publisher_depth2_, publisher_depth3_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr publisher_pcl;
   std::shared_ptr<image_geometry::PinholeCameraModel> camera_model1_, camera_model2_, camera_model3_;
+  float fx1_, fy1_, cx1_, cy1_, fx2_, fy2_, cx2_, cy2_, fx3_, fy3_, cx3_, cy3_;
 };
 
 } // namespace computer_vision
