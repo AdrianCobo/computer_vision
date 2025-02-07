@@ -31,6 +31,8 @@
 #include <omp.h>
 #include <Eigen/Dense>
 
+//un solo bucle:
+
 namespace computer_vision
 {
 
@@ -108,8 +110,8 @@ public:
     subscription_depth3_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(
       this, "/image_depth_in3", rclcpp::SensorDataQoS().reliable().get_rmw_qos_profile());
 
-    sync_ = std::make_shared<message_filters::Synchronizer<MySyncPolicy>>(
-      MySyncPolicy(100000), *subscription_depth1_, *subscription_depth2_, *subscription_depth3_);
+    sync_ = std::make_shared<message_filters::Synchronizer<MySyncPolicy1>>(
+      MySyncPolicy1(100000), *subscription_depth1_, *subscription_depth2_, *subscription_depth3_);
     sync_->registerCallback(
       std::bind(
         &CVSubscriber::topic_callback_multi, this, _1, _2, _3));
@@ -164,35 +166,86 @@ private:
     final_pcl.insert(final_pcl.end(), input_pcl.begin(), input_pcl.end());
   }
 
-  void depth2pcl(const cv::Mat& input,  std::shared_ptr<image_geometry::PinholeCameraModel> camera_model, pcl::PointCloud<pcl::PointXYZ>& final_pcl)
+  void depth2pcl(pcl::PointCloud<pcl::PointXYZ>& final_pcl)
   {
-    cv::Mat intrinsic_marix = (cv::Mat)camera_model->intrinsicMatrix();
-    float fx, fy, cx, cy;
+    cv::Mat intrinsic_marix_1 = (cv::Mat)camera_model1_->intrinsicMatrix();
+    cv::Mat intrinsic_marix_2 = (cv::Mat)camera_model2_->intrinsicMatrix();
+    cv::Mat intrinsic_marix_3 = (cv::Mat)camera_model3_->intrinsicMatrix();
+
+    float fx1, fy1, cx1, cy1, fx2, fy2, cx2, cy2, fx3, fy3, cx3, cy3;
     
-    fx = (float)intrinsic_marix.at<double>(0, 0);
-    fy = (float)intrinsic_marix.at<double>(1, 1);
-    cx = (float)intrinsic_marix.at<double>(0, 2);
-    cy = (float)intrinsic_marix.at<double>(1, 2);
+    fx1 = (float)intrinsic_marix_1.at<double>(0, 0);
+    fy1 = (float)intrinsic_marix_1.at<double>(1, 1);
+    cx1 = (float)intrinsic_marix_1.at<double>(0, 2);
+    cy1 = (float)intrinsic_marix_1.at<double>(1, 2);
+
+    fx2 = (float)intrinsic_marix_2.at<double>(0, 0);
+    fy2 = (float)intrinsic_marix_2.at<double>(1, 1);
+    cx2 = (float)intrinsic_marix_2.at<double>(0, 2);
+    cy2 = (float)intrinsic_marix_2.at<double>(1, 2);
+
+    fx3 = (float)intrinsic_marix_3.at<double>(0, 0);
+    fy3 = (float)intrinsic_marix_3.at<double>(1, 1);
+    cx3 = (float)intrinsic_marix_3.at<double>(0, 2);
+    cy3 = (float)intrinsic_marix_3.at<double>(1, 2);
+
+    Eigen::Vector3f translation_cam2(-1.0, 0.0, -1.0);  // Traslación en X, Y, Z
+    Eigen::Vector3f translation_cam3(-0.0, 0.0, -2.0);  // Traslación en X, Y, Z
+
+    float theta = - M_PI / 2;  // 45 grados en radianes
+    Eigen::Matrix3f rotationY;
+    rotationY << cos(theta),  0, sin(theta),
+                 0,           1, 0,
+                 -sin(theta),  0, cos(theta);
+
+    float theta2 = - M_PI / 2;  // 45 grados en radianes
+    Eigen::Matrix3f rotationY2;
+    rotationY2 << cos(theta2),  0, sin(theta2),
+                 0,           1, 0,
+                 -sin(theta2),  0, cos(theta2);
 
     // Recorrer la imagen fila por fila
     #pragma omp parallel for
-    for (int row = 0; row < input.rows; ++row) {
-      const float* ptr = input.ptr<float>(row);
+    for (int row = 0; row < image_depth_ptr1->image.rows; ++row) {
+      const float* ptr = image_depth_ptr1->image.ptr<float>(row);
+      const float* ptr2 = image_depth_ptr2->image.ptr<float>(row);
+      const float* ptr3 = image_depth_ptr3->image.ptr<float>(row);
       std::vector<pcl::PointXYZ> local_points;  // Cada hilo usa un vector local
 
-      for (int col = 0; col < input.cols; ++col) {
+      for (int col = 0; col < image_depth_ptr1->image.cols; ++col) {
         float d = ptr[col] / 1000.0f;
-        if (!std::isfinite(d)) continue;
+        if (std::isfinite(d)){
+          float x_3d = (col - cx1) * d / fx1;
+          float y_3d = (row - cy1) * d / fy1;
+          float z_3d = d;
+          
+          final_pcl.push_back(pcl::PointXYZ(x_3d, y_3d, z_3d));
+        }
 
-        float x_3d = (col - cx) * d / fx;
-        float y_3d = (row - cy) * d / fy;
-        float z_3d = d;
+        // no estas cambiando de imagen de profundidad
+        d = ptr2[col] / 1000.0f;
+        if (std::isfinite(d)){
+          float x_3d = (col - cx2) * d / fx2 + translation_cam2.x();
+          float y_3d = (row - cy2) * d / fy2;
+          float z_3d = d + translation_cam2.z();
 
-        local_points.emplace_back(x_3d, y_3d, z_3d);
+          Eigen::Vector3f point_vec(x_3d, y_3d, z_3d);
+          Eigen::Vector3f transformed_point = rotationY * point_vec;
+          final_pcl.push_back(pcl::PointXYZ(transformed_point.x(), transformed_point.y(), transformed_point.z()));
+        }
+
+        // no estas cambiando de imagen de profundidad
+        d = ptr3[col] / 1000.0f;
+        if (!std::isfinite(d)){
+          float x_3d = (col - cx3) * d / fx3;
+          float y_3d = (row - cy3) * d / fy3;
+          float z_3d = d + translation_cam3.z();
+          
+          Eigen::Vector3f point_vec(x_3d, y_3d, z_3d);
+          Eigen::Vector3f transformed_point = rotationY2 * point_vec;
+          final_pcl.push_back(pcl::PointXYZ(transformed_point.x(), transformed_point.y(), transformed_point.z()));
+        }
       }
-
-      #pragma omp critical
-      final_pcl.insert(final_pcl.end(), local_points.begin(), local_points.end());
     }
   }
 
@@ -229,7 +282,6 @@ private:
     if (!check_subscription_count_ || publisher_pcl->get_subscription_count() > 0)
     {
       // Convert ROS Image to OpenCV Image | sensor_msgs::msg::Image -> cv::Mat
-      cv_bridge::CvImagePtr image_depth_ptr1, image_depth_ptr2, image_depth_ptr3;
       try {
         image_depth_ptr1 = cv_bridge::toCvCopy(
             *image_depth_msg1, 
@@ -248,22 +300,17 @@ private:
       pcl::PointCloud<pcl::PointXYZ> final_pcl, temp_pcl;
       final_pcl.reserve(image_depth_ptr1->image.rows * image_depth_ptr1->image.cols * N_CAMS);
       
-      depth2pcl(image_depth_ptr1->image, camera_model1_, final_pcl);
-
-      // borrar despues de prueba
-      // depth2pcl(image_depth_ptr2->image, camera_model2_, final_pcl);
-      // depth2pcl(image_depth_ptr3->image, camera_model3_, final_pcl);
-
+      depth2pcl(final_pcl);
       
-      depth2pcl(image_depth_ptr2->image, camera_model2_, temp_pcl);
-      Eigen::Vector3f translation(-1.0, 0.0, -1.0);
-      y_rotation(temp_pcl, final_pcl, translation, -M_PI / 2.0);
-      temp_pcl.clear();
+      // depth2pcl(image_depth_ptr2->image, camera_model2_, temp_pcl);
+      // Eigen::Vector3f translation(-1.0, 0.0, -1.0);
+      // y_rotation(temp_pcl, final_pcl, translation, -M_PI / 2.0);
+      // temp_pcl.clear();
 
 
-      depth2pcl(image_depth_ptr3->image, camera_model3_, temp_pcl);
-      translation = Eigen::Vector3f(0.0, 0.0, -2.0);
-      y_rotation(temp_pcl, final_pcl, translation, M_PI);
+      // depth2pcl(image_depth_ptr3->image, camera_model3_, temp_pcl);
+      // translation = Eigen::Vector3f(0.0, 0.0, -2.0);
+      // y_rotation(temp_pcl, final_pcl, translation, M_PI);
 
       sensor_msgs::msg::PointCloud2 out_pointcloud;
       pcl::toROSMsg(final_pcl, out_pointcloud);
@@ -275,12 +322,13 @@ private:
   }
 
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::Image,
-      sensor_msgs::msg::Image, sensor_msgs::msg::Image> MySyncPolicy;
-  std::shared_ptr<message_filters::Synchronizer<MySyncPolicy>> sync_;
+      sensor_msgs::msg::Image, sensor_msgs::msg::Image> MySyncPolicy1;
+  std::shared_ptr<message_filters::Synchronizer<MySyncPolicy1>> sync_;
   std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> subscription_depth1_, subscription_depth2_, subscription_depth3_;
   rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr subscription_info1_, subscription_info2_, subscription_info3_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr publisher_pcl;
   std::shared_ptr<image_geometry::PinholeCameraModel> camera_model1_, camera_model2_, camera_model3_;
+  cv_bridge::CvImagePtr image_depth_ptr1, image_depth_ptr2, image_depth_ptr3;
 };
 
 } // namespace computer_vision
