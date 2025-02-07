@@ -174,7 +174,7 @@ private:
   void z_rotation(pcl::PointCloud<pcl::PointXYZ>& input_pcl, pcl::PointCloud<pcl::PointXYZ>& final_pcl, const double& angle)
   {
     // Definir la traslación
-    Eigen::Vector3f translation(0.0, -1.0, -1.0);
+    Eigen::Vector3f translation(-1.0, 0.0, -1.0);
 
     // Crear la matriz de transformación (rotación en el eje Z)
     Eigen::Affine3f transform = Eigen::Affine3f::Identity();
@@ -198,8 +198,8 @@ private:
         float d = ptr[col] / 1000.0f;
         if (!std::isfinite(d)) continue;
 
-        float x_3d = (row - cx) * d / fx;
-        float y_3d = (col - cy) * d / fy;
+        float x_3d = (col - cx) * d / fx;
+        float y_3d = (row - cy) * d / fy;
         float z_3d = d;
 
         local_points.emplace_back(x_3d, y_3d, z_3d);
@@ -264,11 +264,13 @@ private:
       
       depth2pcl(image_depth_ptr1->image, fx1_, fy1_, cx1_, cy1_, final_pcl);
 
-      // depth2pcl(image_depth_ptr2->image, fx2_, fy2_, cx2_, cy2_, temp_pcl);
-      // z_rotation(temp_pcl, final_pcl, M_PI / 2.0);
+      depth2pcl(image_depth_ptr2->image, fx2_, fy2_, cx2_, cy2_, temp_pcl);
+      z_rotation(temp_pcl, final_pcl, -M_PI / 2.0);
+      temp_pcl.clear();
 
-      // depth2pcl(image_depth_ptr3->image, fx3_, fy3_, cx3_, cy3_, temp_pcl);
-      // z_rotation(temp_pcl, final_pcl, M_PI);
+
+      depth2pcl(image_depth_ptr3->image, fx3_, fy3_, cx3_, cy3_, temp_pcl);
+      z_rotation(temp_pcl, final_pcl, M_PI);
 
       // TODO: change PCLXYZ to sensormsgs_pcl
       sensor_msgs::msg::PointCloud2 out_pointcloud;
