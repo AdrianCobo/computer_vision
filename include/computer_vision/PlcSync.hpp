@@ -176,11 +176,11 @@ private:
 
     // Recorrer la imagen fila por fila
     #pragma omp parallel for
-    for (int row = 0; row < input.rows; ++row) {
+    for (int row = 0; row < input.rows; row += 4) {
       const float* ptr = input.ptr<float>(row);
       std::vector<pcl::PointXYZ> local_points;  // Cada hilo usa un vector local
 
-      for (int col = 0; col < input.cols; ++col) {
+      for (int col = 0; col < input.cols; col += 4) {
         float d = ptr[col] / 1000.0f;
         if (!std::isfinite(d)) continue;
 
