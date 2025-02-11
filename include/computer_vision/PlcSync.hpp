@@ -256,14 +256,14 @@ private:
 
       
       depth2pcl(image_depth_ptr2->image, camera_model2_, temp_pcl);
-      Eigen::Vector3f translation(-1.0, 0.0, -1.0);
-      y_rotation(temp_pcl, final_pcl, translation, -M_PI / 2.0);
+      Eigen::Vector3f translation(-0.09698, 0.0, -0.01710);
+      y_rotation(temp_pcl, final_pcl, translation, -30*M_PI/180);
       temp_pcl.clear();
 
 
       depth2pcl(image_depth_ptr3->image, camera_model3_, temp_pcl);
-      translation = Eigen::Vector3f(0.0, 0.0, -2.0);
-      y_rotation(temp_pcl, final_pcl, translation, M_PI);
+      translation = Eigen::Vector3f(0.09698, 0.0, -0.01710);
+      y_rotation(temp_pcl, final_pcl, translation, -330*M_PI/180);
 
       sensor_msgs::msg::PointCloud2 out_pointcloud;
       pcl::toROSMsg(final_pcl, out_pointcloud);
