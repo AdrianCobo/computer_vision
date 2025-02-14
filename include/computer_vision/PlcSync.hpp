@@ -249,20 +249,36 @@ private:
       final_pcl.reserve(image_depth_ptr1->image.rows * image_depth_ptr1->image.cols * N_CAMS);
       
       depth2pcl(image_depth_ptr1->image, camera_model1_, final_pcl);
-      
+
+      // Para soporte 145 grad
       depth2pcl(image_depth_ptr2->image, camera_model2_, temp_pcl);
-      Eigen::Vector3f translation(-0.09698, 0.0, -0.01710);
+      Eigen::Vector3f translation(-0.09096, 0.0, -0.02868);
       Eigen::Vector3f translation2(0.0, 0.0, 0);
       y_rotation(temp_pcl, temp_pcl, translation, 0.0);
-      y_rotation(temp_pcl, final_pcl, translation2, -30*M_PI/180);
+      y_rotation(temp_pcl, final_pcl, translation2, -45*M_PI/180);
 
       temp_pcl.clear();
 
 
       depth2pcl(image_depth_ptr3->image, camera_model3_, temp_pcl);
-      translation = Eigen::Vector3f(0.09698, 0.0, -0.01710);
+      translation = Eigen::Vector3f(0.09096, 0.0, -0.02868);
       y_rotation(temp_pcl, temp_pcl, translation, 0.0);
-      y_rotation(temp_pcl, final_pcl, translation2, -330*M_PI/180);
+      y_rotation(temp_pcl, final_pcl, translation2, -315*M_PI/180);
+      
+      // Para soporte 160 grad
+      // depth2pcl(image_depth_ptr2->image, camera_model2_, temp_pcl);
+      // Eigen::Vector3f translation(-0.09698, 0.0, -0.01710);
+      // Eigen::Vector3f translation2(0.0, 0.0, 0);
+      // y_rotation(temp_pcl, temp_pcl, translation, 0.0);
+      // y_rotation(temp_pcl, final_pcl, translation2, -30*M_PI/180);
+
+      // temp_pcl.clear();
+
+
+      // depth2pcl(image_depth_ptr3->image, camera_model3_, temp_pcl);
+      // translation = Eigen::Vector3f(0.09698, 0.0, -0.01710);
+      // y_rotation(temp_pcl, temp_pcl, translation, 0.0);
+      // y_rotation(temp_pcl, final_pcl, translation2, -330*M_PI/180);
 
       sensor_msgs::msg::PointCloud2 out_pointcloud;
       pcl::toROSMsg(final_pcl, out_pointcloud);
