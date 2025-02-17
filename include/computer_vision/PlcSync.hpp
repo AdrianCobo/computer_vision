@@ -250,20 +250,20 @@ private:
       
       depth2pcl(image_depth_ptr1->image, camera_model1_, final_pcl);
 
-      // Para soporte 145 grad
+      // Para soporte hexag
       depth2pcl(image_depth_ptr2->image, camera_model2_, temp_pcl);
-      Eigen::Vector3f translation(-0.09096, 0.0, -0.02868);
+      Eigen::Vector3f translation(-0.075, 0.0, -0.04330);
       Eigen::Vector3f translation2(0.0, 0.0, 0);
       y_rotation(temp_pcl, temp_pcl, translation, 0.0);
-      y_rotation(temp_pcl, final_pcl, translation2, -45*M_PI/180);
+      y_rotation(temp_pcl, final_pcl, translation2, -60*M_PI/180);
 
       temp_pcl.clear();
 
 
       depth2pcl(image_depth_ptr3->image, camera_model3_, temp_pcl);
-      translation = Eigen::Vector3f(0.09096, 0.0, -0.02868);
+      translation = Eigen::Vector3f(0.075, 0.0, -0.04330);
       y_rotation(temp_pcl, temp_pcl, translation, 0.0);
-      y_rotation(temp_pcl, final_pcl, translation2, -315*M_PI/180);
+      y_rotation(temp_pcl, final_pcl, translation2, -300*M_PI/180);
       
       // Para soporte 160 grad
       // depth2pcl(image_depth_ptr2->image, camera_model2_, temp_pcl);
