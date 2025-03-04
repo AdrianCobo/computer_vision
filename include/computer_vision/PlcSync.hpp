@@ -37,8 +37,10 @@ namespace computer_vision
 using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
+using std::placeholders::_4;
+using std::placeholders::_5;
 
-int N_CAMS = 3;
+int N_CAMS = 5;
 
 class CVGroup
 {
@@ -86,6 +88,12 @@ public:
   {
     this->declare_parameter("check_subscription_count", false);
     this->get_parameter("check_subscription_count", check_subscription_count_);
+    camera_model1_ = nullptr;
+    camera_model2_ = nullptr;
+    camera_model3_ = nullptr;
+    camera_model4_ = nullptr;
+    camera_model5_ = nullptr;
+
 
     subscription_info1_ = create_subscription<sensor_msgs::msg::CameraInfo>(
       "/camera_info1", 1,
@@ -99,6 +107,14 @@ public:
       "/camera_info3", 1,
       std::bind(&CVSubscriber::topic_callback_info3, this, _1));
 
+    subscription_info4_ = create_subscription<sensor_msgs::msg::CameraInfo>(
+      "/camera_info4", 1,
+      std::bind(&CVSubscriber::topic_callback_info4, this, _1));
+
+    subscription_info5_ = create_subscription<sensor_msgs::msg::CameraInfo>(
+      "/camera_info5", 1,
+      std::bind(&CVSubscriber::topic_callback_info5, this, _1));
+
     subscription_depth1_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(
       this, "/image_depth_in1", rclcpp::SensorDataQoS().reliable().get_rmw_qos_profile());
 
@@ -108,11 +124,17 @@ public:
     subscription_depth3_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(
       this, "/image_depth_in3", rclcpp::SensorDataQoS().reliable().get_rmw_qos_profile());
 
+    subscription_depth4_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(
+      this, "/image_depth_in4", rclcpp::SensorDataQoS().reliable().get_rmw_qos_profile());
+
+    subscription_depth5_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(
+      this, "/image_depth_in5", rclcpp::SensorDataQoS().reliable().get_rmw_qos_profile());
+
     sync_ = std::make_shared<message_filters::Synchronizer<MySyncPolicy>>(
-      MySyncPolicy(100000), *subscription_depth1_, *subscription_depth2_, *subscription_depth3_);
+      MySyncPolicy(1000000), *subscription_depth1_, *subscription_depth2_, *subscription_depth3_, *subscription_depth4_, *subscription_depth5_);
     sync_->registerCallback(
       std::bind(
-        &CVSubscriber::topic_callback_multi, this, _1, _2, _3));
+        &CVSubscriber::topic_callback_multi, this, _1, _2, _3, _4, _5));
 
     publisher_pcl = this->create_publisher<sensor_msgs::msg::PointCloud2>(
       "pcl_sync",
@@ -130,7 +152,7 @@ private:
     camera_model1_ = std::make_shared<image_geometry::PinholeCameraModel>();
     camera_model1_->fromCameraInfo(*msg);
 
-    subscription_info1_ = nullptr;
+    //subscription_info1_ = nullptr;
   }
 
     void topic_callback_info2(sensor_msgs::msg::CameraInfo::UniquePtr msg)
@@ -140,7 +162,7 @@ private:
     camera_model2_ = std::make_shared<image_geometry::PinholeCameraModel>();
     camera_model2_->fromCameraInfo(*msg);
 
-    subscription_info2_ = nullptr;
+    //subscription_info2_ = nullptr;
   }
 
     void topic_callback_info3(sensor_msgs::msg::CameraInfo::UniquePtr msg)
@@ -150,7 +172,27 @@ private:
     camera_model3_ = std::make_shared<image_geometry::PinholeCameraModel>();
     camera_model3_->fromCameraInfo(*msg);
 
-    subscription_info3_ = nullptr;
+    //subscription_info3_ = nullptr;
+  }
+
+    void topic_callback_info4(sensor_msgs::msg::CameraInfo::UniquePtr msg)
+  {
+    RCLCPP_INFO(get_logger(), "Camera info 4 received");
+
+    camera_model4_ = std::make_shared<image_geometry::PinholeCameraModel>();
+    camera_model4_->fromCameraInfo(*msg);
+
+    //subscription_info4_ = nullptr;
+  }
+
+    void topic_callback_info5(sensor_msgs::msg::CameraInfo::UniquePtr msg)
+  {
+    RCLCPP_INFO(get_logger(), "Camera info 5 received");
+
+    camera_model5_ = std::make_shared<image_geometry::PinholeCameraModel>();
+    camera_model5_->fromCameraInfo(*msg);
+
+    //subscription_info5_ = nullptr;
   }
 
   void y_rotation(pcl::PointCloud<pcl::PointXYZ>& input_pcl, pcl::PointCloud<pcl::PointXYZ>& final_pcl, Eigen::Vector3f& translation, const double& angle)
@@ -199,7 +241,9 @@ private:
   void topic_callback_multi(
     const sensor_msgs::msg::Image::ConstSharedPtr & image_depth_msg1,
     const sensor_msgs::msg::Image::ConstSharedPtr & image_depth_msg2,
-    const sensor_msgs::msg::Image::ConstSharedPtr & image_depth_msg3)
+    const sensor_msgs::msg::Image::ConstSharedPtr & image_depth_msg3,
+    const sensor_msgs::msg::Image::ConstSharedPtr & image_depth_msg4,
+    const sensor_msgs::msg::Image::ConstSharedPtr & image_depth_msg5)
   {
     // Check if camera model has been received
     if (camera_model1_ == nullptr) {
@@ -217,10 +261,22 @@ private:
       return;
     }
 
+    if (camera_model4_ == nullptr) {
+      RCLCPP_WARN(get_logger(), "Camera Model 4 not yet available");
+      return;
+    }
+
+    if (camera_model5_ == nullptr) {
+      RCLCPP_WARN(get_logger(), "Camera Model 5 not yet available");
+      return;
+    }
+
     // Check if depth image has been received
     if ((image_depth_msg2->encoding != "16UC1" && image_depth_msg2->encoding != "32FC1") ||
         (image_depth_msg1->encoding != "16UC1" && image_depth_msg1->encoding != "32FC1") ||
-        (image_depth_msg3->encoding != "16UC1" && image_depth_msg3->encoding != "32FC1") ) {
+        (image_depth_msg3->encoding != "16UC1" && image_depth_msg3->encoding != "32FC1") ||
+        (image_depth_msg4->encoding != "16UC1" && image_depth_msg4->encoding != "32FC1") ||
+        (image_depth_msg5->encoding != "16UC1" && image_depth_msg5->encoding != "32FC1")) {
       RCLCPP_ERROR(get_logger(), "The image type has not depth info");
       return;
     }
@@ -229,7 +285,7 @@ private:
     if (!check_subscription_count_ || publisher_pcl->get_subscription_count() > 0)
     {
       // Convert ROS Image to OpenCV Image | sensor_msgs::msg::Image -> cv::Mat
-      cv_bridge::CvImagePtr image_depth_ptr1, image_depth_ptr2, image_depth_ptr3;
+      cv_bridge::CvImagePtr image_depth_ptr1, image_depth_ptr2, image_depth_ptr3, image_depth_ptr4, image_depth_ptr5;
       try {
         image_depth_ptr1 = cv_bridge::toCvCopy(
             *image_depth_msg1, 
@@ -239,6 +295,12 @@ private:
           sensor_msgs::image_encodings::TYPE_32FC1);
         image_depth_ptr3 = cv_bridge::toCvCopy(
           *image_depth_msg3,
+          sensor_msgs::image_encodings::TYPE_32FC1);
+        image_depth_ptr4 = cv_bridge::toCvCopy(
+          *image_depth_msg4,
+          sensor_msgs::image_encodings::TYPE_32FC1);
+        image_depth_ptr5 = cv_bridge::toCvCopy(
+          *image_depth_msg5,
           sensor_msgs::image_encodings::TYPE_32FC1);
       } catch (cv_bridge::Exception & e) {
         RCLCPP_ERROR(get_logger(), "cv_bridge exception: %s", e.what());
@@ -259,26 +321,25 @@ private:
 
       temp_pcl.clear();
 
-
       depth2pcl(image_depth_ptr3->image, camera_model3_, temp_pcl);
       translation = Eigen::Vector3f(0.075, 0.0, -0.04330);
       y_rotation(temp_pcl, temp_pcl, translation, 0.0);
       y_rotation(temp_pcl, final_pcl, translation2, -300*M_PI/180);
-      
-      // Para soporte 160 grad
-      // depth2pcl(image_depth_ptr2->image, camera_model2_, temp_pcl);
-      // Eigen::Vector3f translation(-0.09698, 0.0, -0.01710);
-      // Eigen::Vector3f translation2(0.0, 0.0, 0);
-      // y_rotation(temp_pcl, temp_pcl, translation, 0.0);
-      // y_rotation(temp_pcl, final_pcl, translation2, -30*M_PI/180);
 
-      // temp_pcl.clear();
+      temp_pcl.clear();
 
+      // Falta ajustar rototraslaciones
+      depth2pcl(image_depth_ptr4->image, camera_model4_, temp_pcl);
+      translation = Eigen::Vector3f(-0.075, 0.0, -0.04330*2);
+      y_rotation(temp_pcl, temp_pcl, translation, 0.0);
+      y_rotation(temp_pcl, final_pcl, translation2, -120*M_PI/180);
 
-      // depth2pcl(image_depth_ptr3->image, camera_model3_, temp_pcl);
-      // translation = Eigen::Vector3f(0.09698, 0.0, -0.01710);
-      // y_rotation(temp_pcl, temp_pcl, translation, 0.0);
-      // y_rotation(temp_pcl, final_pcl, translation2, -330*M_PI/180);
+      temp_pcl.clear();
+
+      depth2pcl(image_depth_ptr5->image, camera_model5_, temp_pcl);
+      translation = Eigen::Vector3f(0.075, 0.0, -0.04330*2);
+      y_rotation(temp_pcl, temp_pcl, translation, 0.0);
+      y_rotation(temp_pcl, final_pcl, translation2, -240*M_PI/180);
 
       sensor_msgs::msg::PointCloud2 out_pointcloud;
       pcl::toROSMsg(final_pcl, out_pointcloud);
@@ -290,12 +351,12 @@ private:
   }
 
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::Image,
-      sensor_msgs::msg::Image, sensor_msgs::msg::Image> MySyncPolicy;
+      sensor_msgs::msg::Image, sensor_msgs::msg::Image, sensor_msgs::msg::Image, sensor_msgs::msg::Image> MySyncPolicy;
   std::shared_ptr<message_filters::Synchronizer<MySyncPolicy>> sync_;
-  std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> subscription_depth1_, subscription_depth2_, subscription_depth3_;
-  rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr subscription_info1_, subscription_info2_, subscription_info3_;
+  std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> subscription_depth1_, subscription_depth2_, subscription_depth3_, subscription_depth4_, subscription_depth5_;
+  rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr subscription_info1_, subscription_info2_, subscription_info3_, subscription_info4_, subscription_info5_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr publisher_pcl;
-  std::shared_ptr<image_geometry::PinholeCameraModel> camera_model1_, camera_model2_, camera_model3_;
+  std::shared_ptr<image_geometry::PinholeCameraModel> camera_model1_, camera_model2_, camera_model3_, camera_model4_, camera_model5_;
 };
 
 } // namespace computer_vision

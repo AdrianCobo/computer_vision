@@ -26,9 +26,13 @@ def generate_launch_description():
                 ('/camera_info1', '/c1/stereo/camera_info'),
                 ('/camera_info2', '/c2/stereo/camera_info'),
                 ('/camera_info3', '/c3/stereo/camera_info'),
+                ('/camera_info4', '/c4/stereo/camera_info'),
+                ('/camera_info5', '/c5/stereo/camera_info'),
                 ('/image_depth_in1', '/c1/stereo/depth'),
                 ('/image_depth_in2', '/c2/stereo/depth'),
                 ('/image_depth_in3', '/c3/stereo/depth'),
+                ('/image_depth_in4', '/c4/stereo/depth'),
+                ('/image_depth_in5', '/c5/stereo/depth'),
             ],
         )
     ])
