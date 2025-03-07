@@ -218,11 +218,11 @@ private:
 
     // Recorrer la imagen fila por fila
     #pragma omp parallel for
-    for (int row = 0; row < input.rows; row += 4) {
-      const float* ptr = input.ptr<float>(row);
+    for (int row = 0; row < input.rows; row += 5) {
+      const float* ptr = (float*)input.ptr<uint16_t>(row);
       std::vector<pcl::PointXYZ> local_points;  // Cada hilo usa un vector local
 
-      for (int col = 0; col < input.cols; col += 4) {
+      for (int col = 0; col < input.cols; col += 5) {
         float d = ptr[col] / 1000.0f;
         if (!std::isfinite(d)) continue;
 
@@ -311,35 +311,66 @@ private:
       final_pcl.reserve(image_depth_ptr1->image.rows * image_depth_ptr1->image.cols * N_CAMS);
       
       depth2pcl(image_depth_ptr1->image, camera_model1_, final_pcl);
-
-      // Para soporte hexag
-      depth2pcl(image_depth_ptr2->image, camera_model2_, temp_pcl);
-      Eigen::Vector3f translation(-0.075, 0.0, -0.04330);
       Eigen::Vector3f translation2(0.0, 0.0, 0);
-      y_rotation(temp_pcl, temp_pcl, translation, 0.0);
-      y_rotation(temp_pcl, final_pcl, translation2, -60*M_PI/180);
+      Eigen::Vector3f translation(-0.075, 0.0, -0.04330);
+
+      
+      // // Crear la matriz de transformación (rotación en el eje y)
+      depth2pcl(image_depth_ptr2->image, camera_model2_, temp_pcl);
+      Eigen::Affine3f transform;
+      // correction with icp + respective rototraslation
+      transform.matrix() <<   0.5392422,  -0.08248261, -0.88427424, -0.10105343,
+                              -0.0116933,   0.995033,   -0.0988921,  -0.00625785,
+                              0.8420733,   0.05579372,  0.45638803, -0.00985628,
+                              0.,          0.,          0.,          1.;        
+         
+      pcl::transformPointCloud(temp_pcl, temp_pcl, transform);
+      final_pcl.insert(final_pcl.end(), temp_pcl.begin(), temp_pcl.end());
 
       temp_pcl.clear();
 
       depth2pcl(image_depth_ptr3->image, camera_model3_, temp_pcl);
-      translation = Eigen::Vector3f(0.075, 0.0, -0.04330);
-      y_rotation(temp_pcl, temp_pcl, translation, 0.0);
-      y_rotation(temp_pcl, final_pcl, translation2, -300*M_PI/180);
+      // correction with icp + respective rototraslation
+      transform.matrix() <<    5.0052887e-01,  2.6675247e-02,  8.6531043e-01,  7.3455721e-02,
+                              -8.0717099e-04,  9.9953997e-01, -3.0346701e-02, -1.0415400e-02,
+                              -8.6572003e-01,  1.4490918e-02,  5.0032032e-01, -6.7022793e-02,
+                               0.0,  0.0,  0.0,  1.0;        
+         
+      pcl::transformPointCloud(temp_pcl, temp_pcl, transform);
+      final_pcl.insert(final_pcl.end(), temp_pcl.begin(), temp_pcl.end());
 
       temp_pcl.clear();
 
-      // Falta ajustar rototraslaciones
       depth2pcl(image_depth_ptr4->image, camera_model4_, temp_pcl);
-      translation = Eigen::Vector3f(-0.075, 0.0, -0.04330*2);
-      y_rotation(temp_pcl, temp_pcl, translation, 0.0);
-      y_rotation(temp_pcl, final_pcl, translation2, -120*M_PI/180);
+      // correction with icp + respective rototraslation
+      transform.matrix() <<    -4.8677036e-01,  6.5628223e-02, -8.7106133e-01, -1.3400421e-01,
+                               2.6426499e-04,  9.9718499e-01,  7.4983001e-02,  4.8022801e-03,
+                               8.7352961e-01,  3.6269389e-02, -4.8541749e-01, -8.8113561e-02,
+                               0.0,  0.0,  0.0,  1.0;       
+         
+      pcl::transformPointCloud(temp_pcl, temp_pcl, transform);
+      final_pcl.insert(final_pcl.end(), temp_pcl.begin(), temp_pcl.end());
 
       temp_pcl.clear();
 
       depth2pcl(image_depth_ptr5->image, camera_model5_, temp_pcl);
-      translation = Eigen::Vector3f(0.075, 0.0, -0.04330*2);
-      y_rotation(temp_pcl, temp_pcl, translation, 0.0);
-      y_rotation(temp_pcl, final_pcl, translation2, -240*M_PI/180);
+      // correction with icp + respective rototraslation
+      transform.matrix() <<    -4.9431553e-01, -7.5284652e-03,  8.6925077e-01,  1.8517042e-02,
+                              -8.5253699e-04,  9.9996603e-01,  8.1758099e-03,  4.0410701e-03,
+                              -8.6928308e-01,  3.3003348e-03, -4.9430552e-01, -1.5657477e-01,
+                               0.0,  0.0,  0.0,  1.0;       
+         
+      pcl::transformPointCloud(temp_pcl, temp_pcl, transform);
+      final_pcl.insert(final_pcl.end(), temp_pcl.begin(), temp_pcl.end());
+
+      // final icp correction pcl_sync to lidar
+      // correction with icp + respective rototraslation
+      transform.matrix() <<    0.999147, -0.0152454,  0.0384261,  -0.144349,
+                              0.00724112,  0.979687,  0.200407,  0.0892053,
+                              -0.0407008,  -0.199957, 0.978961, -0.188059,
+                               0.0,  0.0,  0.0,  1.0;       
+         
+      pcl::transformPointCloud(final_pcl, final_pcl, transform);
 
       sensor_msgs::msg::PointCloud2 out_pointcloud;
       pcl::toROSMsg(final_pcl, out_pointcloud);
