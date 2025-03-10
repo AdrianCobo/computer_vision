@@ -39,6 +39,7 @@ using std::placeholders::_2;
 using std::placeholders::_3;
 using std::placeholders::_4;
 using std::placeholders::_5;
+using namespace std::chrono_literals;
 
 int N_CAMS = 5;
 
@@ -88,32 +89,21 @@ public:
   {
     this->declare_parameter("check_subscription_count", false);
     this->get_parameter("check_subscription_count", check_subscription_count_);
-    camera_model1_ = nullptr;
-    camera_model2_ = nullptr;
-    camera_model3_ = nullptr;
-    camera_model4_ = nullptr;
-    camera_model5_ = nullptr;
 
+    camera_model1_ = std::make_shared<image_geometry::PinholeCameraModel>();
+    camera_model1_->fromCameraInfo(get_instrinc_cam1());
 
-    subscription_info1_ = create_subscription<sensor_msgs::msg::CameraInfo>(
-      "/camera_info1", 1,
-      std::bind(&CVSubscriber::topic_callback_info1, this, _1));
-    
-    subscription_info2_ = create_subscription<sensor_msgs::msg::CameraInfo>(
-      "/camera_info2", 1,
-      std::bind(&CVSubscriber::topic_callback_info2, this, _1));
+    camera_model2_ = std::make_shared<image_geometry::PinholeCameraModel>();
+    camera_model2_->fromCameraInfo(get_instrinc_cam2());
 
-    subscription_info3_ = create_subscription<sensor_msgs::msg::CameraInfo>(
-      "/camera_info3", 1,
-      std::bind(&CVSubscriber::topic_callback_info3, this, _1));
+    camera_model3_ = std::make_shared<image_geometry::PinholeCameraModel>();
+    camera_model3_->fromCameraInfo(get_instrinc_cam3());
 
-    subscription_info4_ = create_subscription<sensor_msgs::msg::CameraInfo>(
-      "/camera_info4", 1,
-      std::bind(&CVSubscriber::topic_callback_info4, this, _1));
+    camera_model4_ = std::make_shared<image_geometry::PinholeCameraModel>();
+    camera_model4_->fromCameraInfo(get_instrinc_cam4());
 
-    subscription_info5_ = create_subscription<sensor_msgs::msg::CameraInfo>(
-      "/camera_info5", 1,
-      std::bind(&CVSubscriber::topic_callback_info5, this, _1));
+    camera_model5_ = std::make_shared<image_geometry::PinholeCameraModel>();
+    camera_model5_->fromCameraInfo(get_instrinc_cam5());
 
     subscription_depth1_ = std::make_shared<message_filters::Subscriber<sensor_msgs::msg::Image>>(
       this, "/image_depth_in1", rclcpp::SensorDataQoS().reliable().get_rmw_qos_profile());
@@ -139,60 +129,273 @@ public:
     publisher_pcl = this->create_publisher<sensor_msgs::msg::PointCloud2>(
       "pcl_sync",
       rclcpp::SensorDataQoS().reliable());
+
+    tick = std::chrono::high_resolution_clock::now();
   }
 
 private:
   bool check_subscription_count_;
 
-  // TODO: revisar estos 3 callbacks para no repetir código.
-  void topic_callback_info1(sensor_msgs::msg::CameraInfo::UniquePtr msg)
-  {
-    RCLCPP_INFO(get_logger(), "Camera info 1 received");
+  sensor_msgs::msg::CameraInfo get_instrinc_cam1(){
+    sensor_msgs::msg::CameraInfo camera_info_msg;
 
-    camera_model1_ = std::make_shared<image_geometry::PinholeCameraModel>();
-    camera_model1_->fromCameraInfo(*msg);
+    // Rellenar el header
+    camera_info_msg.header.stamp.sec = 1741618763;
+    camera_info_msg.header.stamp.nanosec = 592913061;
+    camera_info_msg.header.frame_id = "oak1_right_camera_optical_frame";
 
-    //subscription_info1_ = nullptr;
+    // Dimensiones de la imagen
+    camera_info_msg.height = 400;
+    camera_info_msg.width = 640;
+
+    // Modelo de distorsión
+    camera_info_msg.distortion_model = "rational_polynomial";
+    camera_info_msg.d = {-0.8970510363578796, -3.311840776228784, 
+                         -0.001362776754446628, -0.00056734721874818121, 
+                          3.88497710227963, -3.9050838947296143, 
+                         -3.292762728305037,  3.8748250007629395};
+
+    // Matriz intrínseca K
+    camera_info_msg.k = {454.27581787109375,  0.0, 305.753994140625,
+                         0.0,  454.132960878906, 189.11952209472656,
+                         0.0,  0.0,  1.0};
+
+    // Matriz de rotación R
+    camera_info_msg.r = {0.9999306201934814, -2.8355399722027e-05,  0.0117860680500735,
+                         4.842148880497356e-05,  0.9999985694885254, -0.0010730232120353,
+                         -0.011780061249137938,  0.0010734754855558276, 0.9999291300773621};
+
+    // Matriz de proyección P
+    camera_info_msg.p = {454.27581787109375,  0.0, 305.753994140625, 0.0,
+                         0.0,  454.132960878906, 189.11952209472656, 0.0,
+                         0.0,  0.0,  1.0,  0.0};
+
+    // Binning y ROI
+    camera_info_msg.binning_x = 0;
+    camera_info_msg.binning_y = 0;
+    camera_info_msg.roi.x_offset = 0;
+    camera_info_msg.roi.y_offset = 0;
+    camera_info_msg.roi.height = 0;
+    camera_info_msg.roi.width = 0;
+    camera_info_msg.roi.do_rectify = false;
+    
+    return camera_info_msg;
   }
 
-    void topic_callback_info2(sensor_msgs::msg::CameraInfo::UniquePtr msg)
-  {
-    RCLCPP_INFO(get_logger(), "Camera info 2 received");
+  sensor_msgs::msg::CameraInfo get_instrinc_cam2(){
+    sensor_msgs::msg::CameraInfo camera_info_msg;
 
-    camera_model2_ = std::make_shared<image_geometry::PinholeCameraModel>();
-    camera_model2_->fromCameraInfo(*msg);
+    // Rellenar el header
+    camera_info_msg.header.stamp.sec = 1741619400;
+    camera_info_msg.header.stamp.nanosec = 311082180;
+    camera_info_msg.header.frame_id = "oak2_right_camera_optical_frame";
 
-    //subscription_info2_ = nullptr;
+    // Dimensiones de la imagen
+    camera_info_msg.height = 400;
+    camera_info_msg.width = 640;
+
+    // Modelo de distorsión
+    camera_info_msg.distortion_model = "rational_polynomial";
+    camera_info_msg.d = {-0.1039981096982956, -4.7574286460876465, 
+                         -0.002679175373046627, -0.000963595924262285, 
+                          4.5111036643992676, -0.1461227387189865, 
+                          0.6510576671651001, -4.44262790679316};
+
+    // Matriz intrínseca K
+    camera_info_msg.k = {451.0455947265625,  0.0, 328.9924621582031,
+                         0.0,  450.8662109375, 235.92983232421875,
+                         0.0,  0.0,  1.0};
+
+    // Matriz de rotación R
+    camera_info_msg.r = {0.999999996986389, -0.004149611108005047, -0.0008748080898603697,
+                         0.004159019345578495,  0.9999552369117737, -0.008302662818532448,
+                         0.008394789765589839,  0.008506221696734428, 0.9999634623527527};
+
+    // Matriz de proyección P
+    camera_info_msg.p = {451.0455947265625,  0.0, 328.9924621582031, 0.0,
+                         0.0,  450.8662109375, 235.92983232421875, 0.0,
+                         0.0,  0.0,  1.0,  0.0};
+
+    // Binning y ROI
+    camera_info_msg.binning_x = 0;
+    camera_info_msg.binning_y = 0;
+    camera_info_msg.roi.x_offset = 0;
+    camera_info_msg.roi.y_offset = 0;
+    camera_info_msg.roi.height = 0;
+    camera_info_msg.roi.width = 0;
+    camera_info_msg.roi.do_rectify = false;
+    
+    return camera_info_msg;
   }
 
-    void topic_callback_info3(sensor_msgs::msg::CameraInfo::UniquePtr msg)
-  {
-    RCLCPP_INFO(get_logger(), "Camera info 3 received");
+  sensor_msgs::msg::CameraInfo get_instrinc_cam3(){
+    sensor_msgs::msg::CameraInfo camera_info_msg;
 
-    camera_model3_ = std::make_shared<image_geometry::PinholeCameraModel>();
-    camera_model3_->fromCameraInfo(*msg);
+    // Rellenar el header
+    camera_info_msg.header.stamp.sec = 1741619512;
+    camera_info_msg.header.stamp.nanosec = 400881677;
+    camera_info_msg.header.frame_id = "oak3_right_camera_optical_frame";
 
-    //subscription_info3_ = nullptr;
+    // Dimensiones de la imagen
+    camera_info_msg.height = 400;
+    camera_info_msg.width = 640;
+
+    // Modelo de distorsión
+    camera_info_msg.distortion_model = "rational_polynomial";
+    camera_info_msg.d = {-1.2734373807907104, -1.9612691402435303, 
+                         -0.00182633326492106559, 0.00102855222441256, 
+                          2.6471283735031562, -1.2939773797988892, 
+                         -1.9068445540410362, -2.611210823059082};
+
+    // Matriz intrínseca K
+    camera_info_msg.k = {454.3362121582031,  0.0, 305.989990234375,
+                         0.0,  454.31610107421875, 204.17007446289062,
+                         0.0,  0.0,  1.0};
+
+    // Matriz de rotación R
+    camera_info_msg.r = {0.9999585151672363,  0.00862814480602764, -0.00291972677233844,
+                         -0.00862946268177072,  0.9999628742984706, -0.000493437317011512,
+                         0.0029158205629203653,  0.000446209180790931, 0.9999956488609314};
+
+    // Matriz de proyección P
+    camera_info_msg.p = {454.3362121582031,  0.0, 305.989990234375, 0.0,
+                         0.0,  454.31610107421875, 204.17007446289062, 0.0,
+                         0.0,  0.0,  1.0,  0.0};
+
+    // Binning y ROI
+    camera_info_msg.binning_x = 0;
+    camera_info_msg.binning_y = 0;
+    camera_info_msg.roi.x_offset = 0;
+    camera_info_msg.roi.y_offset = 0;
+    camera_info_msg.roi.height = 0;
+    camera_info_msg.roi.width = 0;
+    camera_info_msg.roi.do_rectify = false;
+    
+    return camera_info_msg;
   }
 
-    void topic_callback_info4(sensor_msgs::msg::CameraInfo::UniquePtr msg)
-  {
-    RCLCPP_INFO(get_logger(), "Camera info 4 received");
+  sensor_msgs::msg::CameraInfo get_instrinc_cam4(){
+    sensor_msgs::msg::CameraInfo camera_info_msg;
 
-    camera_model4_ = std::make_shared<image_geometry::PinholeCameraModel>();
-    camera_model4_->fromCameraInfo(*msg);
+    // Header
+    camera_info_msg.header.stamp.sec = 1741619583;
+    camera_info_msg.header.stamp.nanosec = 898378322;
+    camera_info_msg.header.frame_id = "oak4_right_camera_optical_frame";
 
-    //subscription_info4_ = nullptr;
+    // Image dimensions
+    camera_info_msg.height = 400;
+    camera_info_msg.width = 640;
+
+    // Distortion model
+    camera_info_msg.distortion_model = "rational_polynomial";
+
+    // Distortion coefficients (D)
+    camera_info_msg.d = {
+        11.517766952514648, 
+        3.9527781009674072, 
+        -0.00048372796739705969, 
+        -0.000631666954793036, 
+        -19.346494674682617, 
+        11.58913344116211, 
+        3.578423261642456, 
+        -18.894325256347656
+    };
+
+    // Camera matrix (K)
+    camera_info_msg.k = {
+        457.55975341796875, 0.0, 319.53515625,
+        0.0, 457.47283935546875, 201.418701171875,
+        0.0, 0.0, 1.0
+    };
+
+    // Rectification matrix (R)
+    camera_info_msg.r = {
+        0.9999346137046814, 0.005614885129034519, 0.00962455369352108,
+        -0.005592220932519964, 0.9998977180714054, 0.00203136862309518,
+        -0.00975194943130273, -0.00224550603888929, 0.999947772762532
+    };
+
+    // Projection matrix (P)
+    camera_info_msg.p = {
+        457.55975341796875, 0.0, 319.53515625, 0.0,
+        0.0, 457.47283935546875, 201.418701171875, 0.0,
+        0.0, 0.0, 1.0, 0.0
+    };
+
+    // Binning
+    camera_info_msg.binning_x = 0;
+    camera_info_msg.binning_y = 0;
+
+    // Region of Interest (ROI)
+    camera_info_msg.roi.x_offset = 0;
+    camera_info_msg.roi.y_offset = 0;
+    camera_info_msg.roi.height = 0;
+    camera_info_msg.roi.width = 0;
+    camera_info_msg.roi.do_rectify = false;
+    
+    return camera_info_msg;
   }
 
-    void topic_callback_info5(sensor_msgs::msg::CameraInfo::UniquePtr msg)
-  {
-    RCLCPP_INFO(get_logger(), "Camera info 5 received");
+  sensor_msgs::msg::CameraInfo get_instrinc_cam5(){
+    sensor_msgs::msg::CameraInfo camera_info_msg;
 
-    camera_model5_ = std::make_shared<image_geometry::PinholeCameraModel>();
-    camera_model5_->fromCameraInfo(*msg);
+    // Header
+    camera_info_msg.header.stamp.sec = 1741619776;
+    camera_info_msg.header.stamp.nanosec = 682764490;
+    camera_info_msg.header.frame_id = "oak5_right_camera_optical_frame";
 
-    //subscription_info5_ = nullptr;
+    // Image dimensions
+    camera_info_msg.height = 400;
+    camera_info_msg.width = 640;
+
+    // Distortion model
+    camera_info_msg.distortion_model = "rational_polynomial";
+
+    // Distortion coefficients (D)
+    camera_info_msg.d = {
+        -1.0620687007904053, 
+        -2.320189997106254, 
+        0.0006696623167954385, 
+        0.0017430468393272131, 
+        2.789074659347534, 
+        -1.088186264038086, 
+        -2.2531087398529053, 
+        2.745926147388916
+    };
+
+    // Camera matrix (K)
+    camera_info_msg.k = {
+        450.6310729980469, 0.0, 309.54864501953125,
+        0.0, 450.7037048339844, 199.56655883789062,
+        0.0, 0.0, 1.0
+    };
+
+    // Rectification matrix (R)
+    camera_info_msg.r = {
+        0.9999790191650391, -0.001678782779257955, 0.006021526884446096,
+        0.0018920677034557808, 0.9999883177224121, 0.004898851217187405,
+        -0.006129822982213247, -0.00491520743578672, 0.9999867671661377
+    };
+
+    // Projection matrix (P)
+    camera_info_msg.p = {
+        450.6310729980469, 0.0, 309.54864501953125, 0.0,
+        0.0, 450.7037048339844, 199.56655883789062, 0.0,
+        0.0, 0.0, 1.0, 0.0
+    };
+
+    // Binning
+    camera_info_msg.binning_x = 0;
+    camera_info_msg.binning_y = 0;
+
+    // Region of Interest (ROI)
+    camera_info_msg.roi.x_offset = 0;
+    camera_info_msg.roi.y_offset = 0;
+    camera_info_msg.roi.height = 0;
+    camera_info_msg.roi.width = 0;
+    camera_info_msg.roi.do_rectify = false;
+    
+    return camera_info_msg;
   }
 
   void y_rotation(pcl::PointCloud<pcl::PointXYZ>& input_pcl, pcl::PointCloud<pcl::PointXYZ>& final_pcl, Eigen::Vector3f& translation, const double& angle)
@@ -245,32 +448,6 @@ private:
     const sensor_msgs::msg::Image::ConstSharedPtr & image_depth_msg4,
     const sensor_msgs::msg::Image::ConstSharedPtr & image_depth_msg5)
   {
-    // Check if camera model has been received
-    if (camera_model1_ == nullptr) {
-      RCLCPP_WARN(get_logger(), "Camera Model 1 not yet available");
-      return;
-    }
-
-    if (camera_model2_ == nullptr) {
-      RCLCPP_WARN(get_logger(), "Camera Model 2 not yet available");
-      return;
-    }
-
-    if (camera_model3_ == nullptr) {
-      RCLCPP_WARN(get_logger(), "Camera Model 3 not yet available");
-      return;
-    }
-
-    if (camera_model4_ == nullptr) {
-      RCLCPP_WARN(get_logger(), "Camera Model 4 not yet available");
-      return;
-    }
-
-    if (camera_model5_ == nullptr) {
-      RCLCPP_WARN(get_logger(), "Camera Model 5 not yet available");
-      return;
-    }
-
     // Check if depth image has been received
     if ((image_depth_msg2->encoding != "16UC1" && image_depth_msg2->encoding != "32FC1") ||
         (image_depth_msg1->encoding != "16UC1" && image_depth_msg1->encoding != "32FC1") ||
@@ -376,8 +553,12 @@ private:
       pcl::toROSMsg(final_pcl, out_pointcloud);
       out_pointcloud.header = image_depth_msg1->header;
 
-      // Publish the data
-      publisher_pcl->publish(out_pointcloud);
+      auto tock = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> duration = tock - tick;
+      if (duration.count() >= 0.099){
+        publisher_pcl->publish(out_pointcloud);
+        tick = tock;
+      }
     }
   }
 
@@ -385,9 +566,10 @@ private:
       sensor_msgs::msg::Image, sensor_msgs::msg::Image, sensor_msgs::msg::Image, sensor_msgs::msg::Image> MySyncPolicy;
   std::shared_ptr<message_filters::Synchronizer<MySyncPolicy>> sync_;
   std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> subscription_depth1_, subscription_depth2_, subscription_depth3_, subscription_depth4_, subscription_depth5_;
-  rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr subscription_info1_, subscription_info2_, subscription_info3_, subscription_info4_, subscription_info5_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr publisher_pcl;
   std::shared_ptr<image_geometry::PinholeCameraModel> camera_model1_, camera_model2_, camera_model3_, camera_model4_, camera_model5_;
+  rclcpp::TimerBase::SharedPtr timer_;
+  std::chrono::time_point<std::chrono::high_resolution_clock> tick;
 };
 
 } // namespace computer_vision

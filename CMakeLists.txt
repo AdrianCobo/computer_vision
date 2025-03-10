@@ -61,6 +61,10 @@ add_executable(pclsync src/main_pclsync.cpp)
 ament_target_dependencies(pclsync ${dependencies})
 target_link_libraries(pclsync ${PROJECT_NAME})
 
+add_executable(pclsynctimer src/main_pclsynctimer.cpp)
+ament_target_dependencies(pclsynctimer ${dependencies})
+target_link_libraries(pclsynctimer ${PROJECT_NAME})
+
 add_executable(pclsyncIcp src/main_pclsyncIcp.cpp)
 ament_target_dependencies(pclsyncIcp ${dependencies})
 target_link_libraries(pclsyncIcp ${PROJECT_NAME})
@@ -85,6 +89,7 @@ install(TARGETS ${PROJECT_NAME}
   pclsync
   pclsyncIcp
   pclsyncIcppcl
+  pclsynctimer
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
