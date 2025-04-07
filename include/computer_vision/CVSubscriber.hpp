@@ -8,18 +8,18 @@
 #ifndef INCLUDE_COMPUTER_VISION__CVSUBSCRIBER_HPP_
 #define INCLUDE_COMPUTER_VISION__CVSUBSCRIBER_HPP_
 
-#include "image_transport/image_transport.hpp"
-#include "opencv2/highgui/highgui.hpp"
+// #include "image_transport/image_transport.hpp"
+// #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/opencv.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
-#include "image_geometry/pinhole_camera_model.hpp"
+#include "image_geometry/pinhole_camera_model.h"
 #include "pcl/point_types.h"
 #include "pcl_conversions/pcl_conversions.h"
 #include "pcl/point_types_conversion.h"
 #include "message_filters/subscriber.h"
 #include "message_filters/sync_policies/approximate_time.h"
-#include "cv_bridge/cv_bridge.hpp"
+#include "cv_bridge/cv_bridge.h"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"

@@ -7,7 +7,7 @@
   See the LICENSE file in the root of this repository
 */
 
-// This node recives 3 depth imgs, sync them and publish a unique pcl knowing the relative position of the cameras
+// This node recives 2 pcls from input topics and execute ICP
 
 #ifndef INCLUDE_COMPUTER_VISION__DEPTHSYNC_HPP_
 #define INCLUDE_COMPUTER_VISION__DEPTHSYNC_HPP_
