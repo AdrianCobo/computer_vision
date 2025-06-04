@@ -356,10 +356,10 @@ private:
       depth2pcl(image_depth_ptr2->image, camera_model2_, temp_pcl);
       Eigen::Affine3f transform;
       // correction with icp + respective rototraslation
-      transform.matrix() <<     0.5,     0.,     -0.866,  -0.,   
-                                0.,      1.,      0.,      0.,    
-                                0.866,   0.,      0.5,    -0.0866,
-                                0.,      0.,      0.,      1.;       
+      transform.matrix() <<      0.487,  -0.0237, -0.873 , -0.0047,
+                                 0.0295,  0.9995, -0.0106,  0.002, 
+                                 0.8729, -0.0206,  0.4875,  0.0072,
+                                 0.,      0.,      0.,     1.;           
          
       pcl::transformPointCloud(temp_pcl, temp_pcl, transform);
       final_pcl.insert(final_pcl.end(), temp_pcl.begin(), temp_pcl.end());
@@ -368,9 +368,9 @@ private:
 
       depth2pcl(image_depth_ptr3->image, camera_model3_, temp_pcl);
       // correction with icp + respective rototraslation
-      transform.matrix() <<     0.5,     0.,     0.866,  0.,    
-                                0.,      1.,      0.,      0.,    
-                                -0.866,   0.,      0.5,    -0.0866,
+      transform.matrix() <<     0.4701,  0.0205,  0.8823,  0.0006,
+                                -0.0173,  0.9998, -0.014,  -0.0005,
+                                -0.8824, -0.0087,  0.4704, -0.0004,
                                 0.,      0.,      0.,      1.;
       pcl::transformPointCloud(temp_pcl, temp_pcl, transform);
       final_pcl.insert(final_pcl.end(), temp_pcl.begin(), temp_pcl.end());
@@ -379,10 +379,11 @@ private:
 
       depth2pcl(image_depth_ptr4->image, camera_model4_, temp_pcl);
       // correction with icp + respective rototraslation
-      transform.matrix() <<    -0.5,     0.,     -0.866,   0.1125,
-                               0.,      1.,      0.,      0.,
-                               0.866,   0.,     -0.5,    -0.0217,
-                               0.,      0.,      0.,      1.;         
+      transform.matrix() <<     -0.5657, -0.0086, -0.8246,  0.0676,
+                                0.0817,  0.9944, -0.0664,  0.0062,
+                                0.8205, -0.1049, -0.5618,  0.1017,
+                                0.,      0.,      0.,      1.;
+
       pcl::transformPointCloud(temp_pcl, temp_pcl, transform);
       final_pcl.insert(final_pcl.end(), temp_pcl.begin(), temp_pcl.end());
 
@@ -390,19 +391,19 @@ private:
 
       depth2pcl(image_depth_ptr5->image, camera_model5_, temp_pcl);
       // correction with icp + respective rototraslation
-      transform.matrix() <<     -0.5,     0.,      0.866,  -0.1125,
-                                0.,      1.,      0.,      0.,
-                                -0.866,   0.,     -0.5,    -0.0217,
-                                0.,      0.,      0.,      1.;        
+      transform.matrix() <<      -0.56,    0.0306,  0.8279, -0.0721,
+                                  0.0214,  0.9995, -0.0225,  0.0039,
+                                 -0.8282,  0.0051, -0.5604,  0.0918,
+                                  0.,      0.,      0.,      1.;        
          
       pcl::transformPointCloud(temp_pcl, temp_pcl, transform);
       final_pcl.insert(final_pcl.end(), temp_pcl.begin(), temp_pcl.end());
 
-      // final icp correction pcl_sync to lidar
+      // final icp correction pcl_sync to lidar // con este empeora mucho
       // correction with icp + respective rototraslation
-      // transform.matrix() <<    0.999147, -0.0152454,  0.0384261,  -0.144349,
-      //                         0.00724112,  0.979687,  0.200407,  0.0892053,
-      //                         -0.0407008,  -0.199957, 0.978961, -0.188059,
+      // transform.matrix() <<    0.970853,   0.231431, -0.0623176,  0.0625642,
+      //                         -0.212848,   0.713004,  -0.668072,   0.188358,
+      //                         -0.11018,   0.661865,   0.741483,  -0.237595,
       //                          0.0,  0.0,  0.0,  1.0;       
          
       // pcl::transformPointCloud(final_pcl, final_pcl, transform);

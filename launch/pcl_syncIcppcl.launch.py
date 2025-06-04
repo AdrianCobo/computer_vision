@@ -23,8 +23,8 @@ def generate_launch_description():
             ],
             # Use topics from robot
             remappings=[
-                ('/pointcloud_in1', '/rslidar_points'),
-                ('/pointcloud_in2', '/computer_vision/pcl_sync')
+                ('/pointcloud_in1', '/computer_vision/pcl_sync'),
+                ('/pointcloud_in2', '/rslidar_points')
             ],
         )
     ])
