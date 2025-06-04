@@ -47,31 +47,31 @@ set(dependencies
 
 # OpenCV and PCL node
 include_directories(include)
-# add_library(${PROJECT_NAME} SHARED
-#   src/${PROJECT_NAME}/CVSubscriber.cpp
-# )
-# ament_target_dependencies(${PROJECT_NAME} ${dependencies})
-# target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} ${PCL_LIBRARIES})
+add_library(${PROJECT_NAME} SHARED
+  src/${PROJECT_NAME}/CVSubscriber.cpp
+)
+ament_target_dependencies(${PROJECT_NAME} ${dependencies})
+target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} ${PCL_LIBRARIES})
 
-# add_executable(cv_program src/main.cpp)
-# ament_target_dependencies(cv_program ${dependencies})
-# target_link_libraries(cv_program ${PROJECT_NAME})
+add_executable(cv_program src/main.cpp)
+ament_target_dependencies(cv_program ${dependencies})
+target_link_libraries(cv_program ${PROJECT_NAME})
 
-# add_executable(pclsync src/main_pclsync.cpp)
-# ament_target_dependencies(pclsync ${dependencies})
-# target_link_libraries(pclsync ${PROJECT_NAME})
+add_executable(pclsync src/main_pclsync.cpp)
+ament_target_dependencies(pclsync ${dependencies})
+target_link_libraries(pclsync ${PROJECT_NAME})
 
-# add_executable(pclsynctimer src/main_pclsynctimer.cpp)
-# ament_target_dependencies(pclsynctimer ${dependencies})
-# target_link_libraries(pclsynctimer ${PROJECT_NAME})
+add_executable(pclsynctimer src/main_pclsynctimer.cpp)
+ament_target_dependencies(pclsynctimer ${dependencies})
+target_link_libraries(pclsynctimer ${PROJECT_NAME})
 
-# add_executable(pclsyncIcp src/main_pclsyncIcp.cpp)
-# ament_target_dependencies(pclsyncIcp ${dependencies})
-# target_link_libraries(pclsyncIcp ${PROJECT_NAME})
+add_executable(pclsyncIcp src/main_pclsyncIcp.cpp)
+ament_target_dependencies(pclsyncIcp ${dependencies})
+target_link_libraries(pclsyncIcp ${PROJECT_NAME})
 
-# add_executable(pclsyncIcppcl src/main_pclsyncIcppcl.cpp)
-# ament_target_dependencies(pclsyncIcppcl ${dependencies})
-# target_link_libraries(pclsyncIcppcl ${PROJECT_NAME})
+add_executable(pclsyncIcppcl src/main_pclsyncIcppcl.cpp)
+ament_target_dependencies(pclsyncIcppcl ${dependencies})
+target_link_libraries(pclsyncIcppcl ${PROJECT_NAME})
 
 add_executable(plcSyncIcppclfrompcd src/main_plcsyncIcppclfrompcd.cpp)
 target_include_directories(plcSyncIcppclfrompcd PUBLIC
@@ -81,33 +81,33 @@ target_compile_features(plcSyncIcppclfrompcd PUBLIC c_std_99 cxx_std_17)  # Requ
 ament_target_dependencies(plcSyncIcppclfrompcd ${dependencies})
 
 ## depht2pcl node
-# add_executable(depth2pcl src/computer_vision/Depth2pcl.cpp)
-# target_include_directories(depth2pcl PUBLIC
-#   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-#   $<INSTALL_INTERFACE:include>)
-# target_compile_features(depth2pcl PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
-# ament_target_dependencies(depth2pcl ${dependencies})
+add_executable(depth2pcl src/computer_vision/Depth2pcl.cpp)
+target_include_directories(depth2pcl PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+target_compile_features(depth2pcl PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+ament_target_dependencies(depth2pcl ${dependencies})
 
-#target_link_libraries(depth2pcl ${PROJECT_NAME})
+target_link_libraries(depth2pcl ${PROJECT_NAME})
 
-install(TARGETS
+#install(TARGETS
+#  plcSyncIcppclfrompcd
+#  DESTINATION lib/${PROJECT_NAME})
+
+install(TARGETS 
+  ${PROJECT_NAME}
   plcSyncIcppclfrompcd
-  DESTINATION lib/${PROJECT_NAME})
-
-# install(TARGETS 
-#   ${PROJECT_NAME}
-#   plcSyncIcppclfrompcd
-#   cv_program
-#   depth2pcl
-#   pclsync
-#   pclsyncIcp
-#   pclsyncIcppcl
-#   pclsynctimer
-#   ARCHIVE DESTINATION lib
-#   LIBRARY DESTINATION lib
-#   RUNTIME DESTINATION bin
-#   RUNTIME DESTINATION lib/${PROJECT_NAME}
-# )
+  cv_program
+  depth2pcl
+  pclsync
+  pclsyncIcp
+  pclsyncIcppcl
+  pclsynctimer
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
 
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
 

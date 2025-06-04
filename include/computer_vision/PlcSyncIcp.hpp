@@ -69,6 +69,21 @@ public:
     sync_->registerCallback(
       std::bind(
         &CVSubscriber::topic_callback_multi, this, _1, _2));
+
+    // Crea el publisher para la nube alineada
+    publisher_pcl1 = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+      "pcl1",
+      rclcpp::SensorDataQoS().reliable());
+
+    // Crea el publisher para la nube alineada
+    publisher_pcl2 = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+      "pcl2",
+      rclcpp::SensorDataQoS().reliable());
+
+    // Crea el publisher para la nube alineada
+    publisher_pcl_align = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+      "aligned_pointcloud",
+      rclcpp::SensorDataQoS().reliable());
   }
 
 private:
@@ -93,6 +108,85 @@ private:
     camera_model2_->fromCameraInfo(*msg);
 
     //subscription_info2_.reset();
+  }
+
+  void y_rotation(pcl::PointCloud<pcl::PointXYZ>& input_pcl, pcl::PointCloud<pcl::PointXYZ>& final_pcl, Eigen::Vector3f& translation, const double& angle)
+  {
+    // Crear la matriz de transformación (rotación en el eje y)
+    Eigen::Affine3f transform = Eigen::Affine3f::Identity();
+    transform.translation() = translation;
+    transform.rotate(Eigen::AngleAxisf(angle, Eigen::Vector3f::UnitY()));
+
+    pcl::transformPointCloud(input_pcl, input_pcl, transform);
+    final_pcl.insert(final_pcl.end(), input_pcl.begin(), input_pcl.end());
+  }
+
+  void depth2pcl_left_percent(const cv::Mat& input,  
+    std::shared_ptr<image_geometry::PinholeCameraModel> camera_model,
+    pcl::PointCloud<pcl::PointXYZ>& final_pcl,
+    float percent)
+  {
+    cv::Mat intrinsic_marix = (cv::Mat)camera_model->intrinsicMatrix();
+    float fx = intrinsic_marix.at<double>(0, 0);
+    float fy = intrinsic_marix.at<double>(1, 1);
+    float cx = intrinsic_marix.at<double>(0, 2);
+    float cy = intrinsic_marix.at<double>(1, 2);
+
+    int max_col = static_cast<int>(input.cols * percent);
+
+    #pragma omp parallel for
+    for (int row = 0; row < input.rows; row += 4) {
+      const float* ptr = (float*)input.ptr<uint16_t>(row);
+      std::vector<pcl::PointXYZ> local_points;
+
+      for (int col = 0; col < max_col; col += 4) {
+        float d = ptr[col] / 1000.0f;
+        if (!std::isfinite(d) || d > 10.0f) continue;
+
+        float x_3d = (col - cx) * d / fx;
+        float y_3d = (row - cy) * d / fy;
+        float z_3d = d;
+
+        local_points.emplace_back(x_3d, y_3d, z_3d);
+      }
+
+      #pragma omp critical
+      final_pcl.insert(final_pcl.end(), local_points.begin(), local_points.end());
+    }
+  }
+
+  void depth2pcl_right_percent(const cv::Mat& input,  
+    std::shared_ptr<image_geometry::PinholeCameraModel> camera_model,
+    pcl::PointCloud<pcl::PointXYZ>& final_pcl,
+    float percent)
+  {
+    cv::Mat intrinsic_marix = (cv::Mat)camera_model->intrinsicMatrix();
+    float fx = intrinsic_marix.at<double>(0, 0);
+    float fy = intrinsic_marix.at<double>(1, 1);
+    float cx = intrinsic_marix.at<double>(0, 2);
+    float cy = intrinsic_marix.at<double>(1, 2);
+
+    int start_col = static_cast<int>(input.cols * (1.0f - percent));
+
+    #pragma omp parallel for
+    for (int row = 0; row < input.rows; row += 4) {
+      const float* ptr = (float*)input.ptr<uint16_t>(row);
+      std::vector<pcl::PointXYZ> local_points;
+
+      for (int col = start_col; col < input.cols; col += 4) {
+        float d = ptr[col] / 1000.0f;
+        if (!std::isfinite(d) || d > 10.0f) continue;
+          
+        float x_3d = (col - cx) * d / fx;
+        float y_3d = (row - cy) * d / fy;
+        float z_3d = d;
+          
+        local_points.emplace_back(x_3d, y_3d, z_3d);
+      }
+
+      #pragma omp critical
+      final_pcl.insert(final_pcl.end(), local_points.begin(), local_points.end());
+    }
   }
 
     void depth2pcl(const cv::Mat& input,  std::shared_ptr<image_geometry::PinholeCameraModel> camera_model, pcl::PointCloud<pcl::PointXYZ>& final_pcl)
@@ -165,10 +259,36 @@ private:
 
     pcl::PointCloud<pcl::PointXYZ> c1, c2;
     
-    depth2pcl(image_depth_ptr1->image, camera_model1_, c1);
-    depth2pcl(image_depth_ptr1->image, camera_model2_, c2);
+    depth2pcl_left_percent(image_depth_ptr1->image, camera_model1_, c1, 0.1f);
+    depth2pcl_right_percent(image_depth_ptr2->image, camera_model2_, c2, 0.1f);
+    
+    Eigen::Affine3f transform;
+    // // correction with icp + respective rototraslation
+    transform.matrix() <<     0.999211,     0.0204595,     0.0340383,  0.00356559,   
+                              -0.0207416,      0.999754,      0.00796849,      0.000163403,    
+                              -0.0338664,   -0.00866845,      0.99939,    0.0861862,
+                              0.,      0.,      0.,      1.;       
+       
+    pcl::transformPointCloud(c2, c2, transform);
+
+    sensor_msgs::msg::PointCloud2 output1_msg, output2_msg;
+    pcl::toROSMsg(c2, output1_msg);
+    output1_msg.header = image_depth_msg2->header;  // mantiene el timestamp y frame_id originales
+    publisher_pcl1->publish(output1_msg);
+
+    Eigen::Vector3f translation2(0.0, 0.0, 0);
+    //Eigen::Vector3f translation(0.075, 0.0, -0.04330);
+    Eigen::Vector3f translation(0.0, 0.0, -0.04330);
+
+    y_rotation(c1, c1, translation, 0.0);
+    y_rotation(c1, c1, translation2, -300*M_PI/180);      
+
+    pcl::toROSMsg(c1, output2_msg);
+    output2_msg.header = image_depth_msg2->header;  // mantiene el timestamp y frame_id originales
+    publisher_pcl2->publish(output2_msg);
+
     pcl::PointCloud<pcl::PointXYZ>::Ptr c1_ptr = std::make_shared<pcl::PointCloud<pcl::PointXYZ>>(c1);
-    pcl::PointCloud<pcl::PointXYZ>::Ptr c2_ptr =  std::make_shared<pcl::PointCloud<pcl::PointXYZ>>(c2);;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr c2_ptr =  std::make_shared<pcl::PointCloud<pcl::PointXYZ>>(c2);
 
     pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
     // Set the input source and target
@@ -192,6 +312,11 @@ private:
     std::cout << "ICP has " << (icp.hasConverged()?"converged":"not converged") << ", score: " <<
     icp.getFitnessScore() << std::endl;
     std::cout << icp.getFinalTransformation() << std::endl;
+
+    sensor_msgs::msg::PointCloud2 output_msg;
+    pcl::toROSMsg(cloud_source_registered, output_msg);
+    output_msg.header = image_depth_msg2->header;  // mantiene el timestamp y frame_id originales
+    publisher_pcl_align->publish(output_msg);
   }
 
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::Image, sensor_msgs::msg::Image> MySyncPolicy;
@@ -199,6 +324,7 @@ private:
   std::shared_ptr<message_filters::Subscriber<sensor_msgs::msg::Image>> subscription_depth1_, subscription_depth2_;
   rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr subscription_info1_, subscription_info2_;
   std::shared_ptr<image_geometry::PinholeCameraModel> camera_model1_, camera_model2_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr publisher_pcl1, publisher_pcl2, publisher_pcl_align;
 };
 
 } // namespace computer_vision

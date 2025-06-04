@@ -30,6 +30,8 @@
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include <omp.h>
 #include <Eigen/Dense>
+#include <pcl/filters/statistical_outlier_removal.h>
+#include <pcl/filters/radius_outlier_removal.h>
 
 namespace computer_vision
 {
@@ -144,6 +146,41 @@ public:
 private:
   bool check_subscription_count_;
 
+  void removeOutliers(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud) {
+    pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
+    sor.setInputCloud(cloud);
+    sor.setMeanK(20);  // Número de vecinos a analizar
+    sor.setStddevMulThresh(0.8);  // Umbral de desviación estándar
+
+    // Enable OpenMP for parallel processing
+    omp_set_num_threads(10); // Set the number of threads to use
+
+    #pragma omp parallel
+    {
+        #pragma omp single nowait
+        {
+            sor.filter(*cloud);
+        }
+    }
+  }
+
+  void removeOutliersByRadius(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud) {
+    pcl::RadiusOutlierRemoval<pcl::PointXYZ> outrem;
+    outrem.setInputCloud(cloud);
+    outrem.setRadiusSearch(0.10);  // Radio de búsqueda en metros
+    outrem.setMinNeighborsInRadius(5);  // Mínimo de vecinos requeridos
+
+    // Enable OpenMP for parallel processing
+    omp_set_num_threads(10); // Set the number of threads to use
+    #pragma omp parallel
+    {
+        #pragma omp single nowait
+        {
+          outrem.filter(*cloud);
+        }
+    }
+  }
+
   // TODO: revisar estos 3 callbacks para no repetir código.
   void topic_callback_info1(sensor_msgs::msg::CameraInfo::UniquePtr msg)
   {
@@ -224,7 +261,7 @@ private:
 
       for (int col = 0; col < input.cols; col += 4) {
         float d = ptr[col] / 1000.0f;
-        if (!std::isfinite(d)) continue;
+        if (!std::isfinite(d) || d > 10.0f) continue;
 
         float x_3d = (col - cx) * d / fx;
         float y_3d = (row - cy) * d / fy;
@@ -319,10 +356,10 @@ private:
       depth2pcl(image_depth_ptr2->image, camera_model2_, temp_pcl);
       Eigen::Affine3f transform;
       // correction with icp + respective rototraslation
-      transform.matrix() <<   0.5392422,  -0.08248261, -0.88427424, -0.10105343,
-                              -0.0116933,   0.995033,   -0.0988921,  -0.00625785,
-                              0.8420733,   0.05579372,  0.45638803, -0.00985628,
-                              0.,          0.,          0.,          1.;        
+      transform.matrix() <<     0.5,     0.,     -0.866,  -0.,   
+                                0.,      1.,      0.,      0.,    
+                                0.866,   0.,      0.5,    -0.0866,
+                                0.,      0.,      0.,      1.;       
          
       pcl::transformPointCloud(temp_pcl, temp_pcl, transform);
       final_pcl.insert(final_pcl.end(), temp_pcl.begin(), temp_pcl.end());
@@ -331,11 +368,10 @@ private:
 
       depth2pcl(image_depth_ptr3->image, camera_model3_, temp_pcl);
       // correction with icp + respective rototraslation
-      transform.matrix() <<    5.0052887e-01,  2.6675247e-02,  8.6531043e-01,  7.3455721e-02,
-                              -8.0717099e-04,  9.9953997e-01, -3.0346701e-02, -1.0415400e-02,
-                              -8.6572003e-01,  1.4490918e-02,  5.0032032e-01, -6.7022793e-02,
-                               0.0,  0.0,  0.0,  1.0;        
-         
+      transform.matrix() <<     0.5,     0.,     0.866,  0.,    
+                                0.,      1.,      0.,      0.,    
+                                -0.866,   0.,      0.5,    -0.0866,
+                                0.,      0.,      0.,      1.;
       pcl::transformPointCloud(temp_pcl, temp_pcl, transform);
       final_pcl.insert(final_pcl.end(), temp_pcl.begin(), temp_pcl.end());
 
@@ -343,11 +379,10 @@ private:
 
       depth2pcl(image_depth_ptr4->image, camera_model4_, temp_pcl);
       // correction with icp + respective rototraslation
-      transform.matrix() <<    -4.8677036e-01,  6.5628223e-02, -8.7106133e-01, -1.3400421e-01,
-                               2.6426499e-04,  9.9718499e-01,  7.4983001e-02,  4.8022801e-03,
-                               8.7352961e-01,  3.6269389e-02, -4.8541749e-01, -8.8113561e-02,
-                               0.0,  0.0,  0.0,  1.0;       
-         
+      transform.matrix() <<    -0.5,     0.,     -0.866,   0.1125,
+                               0.,      1.,      0.,      0.,
+                               0.866,   0.,     -0.5,    -0.0217,
+                               0.,      0.,      0.,      1.;         
       pcl::transformPointCloud(temp_pcl, temp_pcl, transform);
       final_pcl.insert(final_pcl.end(), temp_pcl.begin(), temp_pcl.end());
 
@@ -355,22 +390,26 @@ private:
 
       depth2pcl(image_depth_ptr5->image, camera_model5_, temp_pcl);
       // correction with icp + respective rototraslation
-      transform.matrix() <<    -4.9431553e-01, -7.5284652e-03,  8.6925077e-01,  1.8517042e-02,
-                              -8.5253699e-04,  9.9996603e-01,  8.1758099e-03,  4.0410701e-03,
-                              -8.6928308e-01,  3.3003348e-03, -4.9430552e-01, -1.5657477e-01,
-                               0.0,  0.0,  0.0,  1.0;       
+      transform.matrix() <<     -0.5,     0.,      0.866,  -0.1125,
+                                0.,      1.,      0.,      0.,
+                                -0.866,   0.,     -0.5,    -0.0217,
+                                0.,      0.,      0.,      1.;        
          
       pcl::transformPointCloud(temp_pcl, temp_pcl, transform);
       final_pcl.insert(final_pcl.end(), temp_pcl.begin(), temp_pcl.end());
 
       // final icp correction pcl_sync to lidar
       // correction with icp + respective rototraslation
-      transform.matrix() <<    0.999147, -0.0152454,  0.0384261,  -0.144349,
-                              0.00724112,  0.979687,  0.200407,  0.0892053,
-                              -0.0407008,  -0.199957, 0.978961, -0.188059,
-                               0.0,  0.0,  0.0,  1.0;       
+      // transform.matrix() <<    0.999147, -0.0152454,  0.0384261,  -0.144349,
+      //                         0.00724112,  0.979687,  0.200407,  0.0892053,
+      //                         -0.0407008,  -0.199957, 0.978961, -0.188059,
+      //                          0.0,  0.0,  0.0,  1.0;       
          
-      pcl::transformPointCloud(final_pcl, final_pcl, transform);
+      // pcl::transformPointCloud(final_pcl, final_pcl, transform);
+
+      // coste computacional demasiado alto
+      // removeOutliers(final_pcl.makeShared());
+      // removeOutliersByRadius(final_pcl.makeShared());
 
       sensor_msgs::msg::PointCloud2 out_pointcloud;
       pcl::toROSMsg(final_pcl, out_pointcloud);

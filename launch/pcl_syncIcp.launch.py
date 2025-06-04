@@ -23,10 +23,10 @@ def generate_launch_description():
             ],
             # Use topics from robot
             remappings=[
-                ('/camera_info1', '/c1/stereo/camera_info'),
-                ('/camera_info2', '/c5/stereo/camera_info'),
-                ('/image_depth_in1', '/computer_vision/pcl_sync'),
-                ('/image_depth_in2', '/rslidar_points')
+                ('/camera_info1', '/c5/stereo/camera_info'),
+                ('/camera_info2', '/c3/stereo/camera_info'),
+                ('/image_depth_in1', '/c5/stereo/depth'),
+                ('/image_depth_in2', '/c3/stereo/depth')
             ],
         )
     ])
