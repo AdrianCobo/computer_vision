@@ -3,7 +3,7 @@
 [![ROS 2 Humble](https://img.shields.io/badge/ROS2-Humble-blue)](https://docs.ros.org/en/humble/)
 ![distro](https://img.shields.io/badge/ROS2-Jazzy-blue)
 
-Este repositorio contiene el código para generar nubes de puntos 3D a partir de un sistema multicámara estéreo OAK-D-Lite sincronizado, y proporciona herramientas avanzadas para la calibración geométrica entre cámaras usando el algoritmo ICP.
+Este repositorio contiene el código para generar nubes de puntos 3D a partir de un sistema multicámara estéreo sincronizado, y proporciona herramientas avanzadas para la calibración geométrica entre cámaras usando el algoritmo ICP.
 
 ---
 
