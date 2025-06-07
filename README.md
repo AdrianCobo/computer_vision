@@ -8,6 +8,22 @@ Este repositorio contiene el código para generar nubes de puntos 3D a partir de
 
 ---
 
+## 🛠️ Instalación
+
+Asegúrate de estar trabajando dentro de un workspace de ROS 2 (por ejemplo, `~/ros2_ws/src`):
+
+```bash
+cd ~/ros2_ws/src
+git clone -b calib https://github.com/AdrianCobo/computer_vision.git
+cd ..
+colcon build --packages-select computer_vision
+```
+
+Una vez finalice la compilación, no olvides fuentear el entorno:
+```bash
+source install/setup.bash
+```
+
 ## 🎯 Funcionalidades principales
 
 - ✅ **Generación de nube de puntos 3D del sistema completo**  
