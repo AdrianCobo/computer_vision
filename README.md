@@ -19,17 +19,14 @@ Este repositorio contiene el código para generar nubes de puntos 3D a partir de
 
 ---
 
-## 🗂️ Estructura del repositorio
+## 🗂️ Estructura relevante del repositorio
 
 ```bash
 computer_vision/
-├── calibration/
-│   ├── calibrate_from_disparity.cpp   # ICP usando imágenes de disparidad
-│   ├── calibrate_from_pcd.cpp         # ICP usando archivos .pcd
-│   ├── calibrate_from_topics.cpp      # ICP en tiempo real desde topics ROS 2
+├── include/
+│   ├── DepthSync.hpp                  # Genera la nube de puntos del sistema usando imágenes de disparidad sincronizadas
+│   ├── PlcSyncIcp.hpp                # ICP usando imágenes de disparidad
+│   ├── PlcSyncIcppclfrompcd.hpp      # ICP usando archivos .pcd
+│   ├── PlcSyncIcppcl.hpp             # ICP en tiempo real desde topics de ROS 2
 │
-├── launch/
-│   └── full_pipeline.launch.py        # Pipeline completo: sincronización, reconstrucción y fusión
-│
-├── utils/
-│   └── scripts/                       # Scripts auxiliares para visualización, conversión, etc.
+├── launch/                           # Launchers para facilitar el uso del código anterior
