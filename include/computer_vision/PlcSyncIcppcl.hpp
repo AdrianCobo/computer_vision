@@ -73,7 +73,6 @@ private:
     const sensor_msgs::msg::PointCloud2::ConstSharedPtr & image_depth_msg2)
   {
     pcl::PointCloud<pcl::PointXYZ> c1, c2;
-    
     pcl::fromROSMsg(*image_depth_msg1, c1);
     pcl::fromROSMsg(*image_depth_msg2, c2);
     pcl::PointCloud<pcl::PointXYZ>::Ptr c1_ptr = std::make_shared<pcl::PointCloud<pcl::PointXYZ>>(c1);

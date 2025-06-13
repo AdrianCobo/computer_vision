@@ -41,7 +41,6 @@ public:
   {
     this->declare_parameter("pcl1", "/home/adrianco/Desktop/ros2_ws/src/map_lab1.pcd");
     this->get_parameter("pcl1", pcl1_path_);
-
     this->declare_parameter("pcl2", "/home/adrianco/Desktop/ros2_ws/src/map_lab2.pcd");
     this->get_parameter("pcl2", pcl2_path_);
 

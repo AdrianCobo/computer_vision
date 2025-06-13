@@ -13,7 +13,6 @@ int main(int argc, char * argv[])
 
   auto cv_node = std::make_shared<computer_vision::CVSubscriber>();
   rclcpp::spin(cv_node);
-
   rclcpp::shutdown();
   return 0;
 }
