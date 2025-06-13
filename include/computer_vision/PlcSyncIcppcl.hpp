@@ -30,7 +30,6 @@
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include <omp.h>
 #include <Eigen/Dense>
-
 #include <pcl/registration/icp.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/filters/filter.h>
